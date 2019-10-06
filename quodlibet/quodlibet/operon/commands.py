@@ -277,6 +277,65 @@ class EditCommand(Command):
         if not options.dry_run:
             self.save_songs([song])
 
+@Command.register
+class ImportCommand(Command):
+    NAME = "import"
+    DESCRIPTION = _("Import tags from a file consistent with the output of 'list -t -c tag,value'")
+    USAGE = "[--dry-run] [--append] <tag-file> <file> [<files>]"
+
+    def _add_options(self, p):
+        p.add_option("--dry-run", action="store_true",
+                     help=_("Show changes, don't apply them"))
+        p.add_option("-a", "--append", action="store_true",
+                         help=_("append the new tags to existing tags instead of replacing them"))
+
+    def _execute(self, options, args):
+        if len(args) < 2:
+            raise CommandError(_("Not enough arguments"))
+
+        tags_path = args[0]
+        paths = args[1:]
+
+        # read tags.
+        tags = {}
+        for line in open(tags_path, 'r', encoding="utf-8"):
+            if not line.strip() or line.startswith(u"#"):
+                continue
+
+            # handle escaped ':' as in 'performer\:trumpet:Miles Davis', 'album:Mozart\: The Violin Sonatas'
+            try:
+                key, value = re.split('(?<!\\\):', line[:-1], 1)
+            except ValueError:
+                self.log("Format error in line %r" % (line))
+                continue
+            key = key.replace("\\", "")
+            value = value.replace("\\", "")
+
+            try:
+                tags[key].append(value)
+            except KeyError:
+                tags[key] = [value]
+
+        for p in paths:
+            for song in [self.load_song(p)]:
+                if not options.append:
+                    for tag in song.realkeys():
+                        self.log("Delete %r" % (tag))
+                        del song[tag]
+                for tag, values in tags.items():
+                    if not song.can_change(tag):
+                        raise CommandError(_("Can not set %r") % tag)
+                    if options.append and tag in song:
+                        values = song.list(tag) + values
+                    song[tag] = '\n'.join(values)
+                    self.log("Set %r to %r" % (values, tag))
+
+            if options.dry_run:
+                self.verbose = True
+
+            if not options.dry_run:
+                self.save_songs([song])
+
 
 @Command.register
 class SetCommand(Command):
