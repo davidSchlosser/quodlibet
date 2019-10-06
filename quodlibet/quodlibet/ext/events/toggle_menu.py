@@ -1,9 +1,9 @@
-# -*- coding: utf-8 -*-
 # Copyright 2016 Christoph Reiter
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License version 2 as
-# published by the Free Software Foundation
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
 
 from gi.repository import Gdk
 
@@ -30,8 +30,7 @@ class ToggleMenuBarPlugin(EventPlugin):
 
         # Menu bar visibility toggle
         def toggle_menubar(widget, event):
-            # Test for the Alt key
-            if event.state == Gdk.ModifierType.MOD1_MASK:
+            if event.keyval in (Gdk.KEY_Alt_L, Gdk.KEY_Alt_R):
                 self._menubar.set_visible(not self._menubar.get_visible())
                 # Select the menu bar if visible
                 if self._menubar.get_visible():

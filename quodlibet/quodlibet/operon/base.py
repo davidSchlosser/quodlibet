@@ -1,9 +1,9 @@
-# -*- coding: utf-8 -*-
 # Copyright 2012,2013 Christoph Reiter
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License version 2 as
-# published by the Free Software Foundation
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
 
 import sys
 from optparse import OptionParser
@@ -23,9 +23,9 @@ class Command(object):
     Subclasses can override _add_options() and _execute()
     """
 
-    NAME = None
-    DESCRIPTION = None
-    USAGE = None
+    NAME = ""
+    DESCRIPTION = ""
+    USAGE = ""
     COMMANDS = []
 
     @classmethod
@@ -84,10 +84,10 @@ class Command(object):
     def _execute(self, options, args):
         """Override to execute something"""
 
-        raise NotImplemented
+        raise NotImplementedError
 
     def print_help(self, file=None):
-        """Print the help information about the comand"""
+        """Print the help information about the command"""
 
         if file is None:
             file = sys.stdout

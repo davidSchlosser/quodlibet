@@ -1,11 +1,11 @@
-# -*- coding: utf-8 -*-
 # Copyright 2010, 2012-2014 Christoph Reiter
 #                      2017 Uriel Zajaczkovski
-#                      2017 Nick Boultbee
+#                 2017-2018 Nick Boultbee
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License version 2 as
-# published by the Free Software Foundation
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
 
 from gi.repository import Gtk, GLib, Pango, Gdk
 
@@ -16,15 +16,16 @@ from quodlibet import _
 from quodlibet.browsers.albums import AlbumTagCompletion
 from quodlibet.browsers import Browser
 from quodlibet.query import Query
-from quodlibet.compat import cmp
 
+from quodlibet.qltk.information import Information
+from quodlibet.qltk.properties import SongProperties
 from quodlibet.qltk.searchbar import SearchBarBox
 from quodlibet.qltk.songsmenu import SongsMenu
 from quodlibet.qltk.views import AllTreeView
 from quodlibet.qltk import Icons
 from quodlibet.qltk.image import add_border_widget, get_surface_for_pixbuf
 from quodlibet.qltk.x import ScrolledWindow, Align, SymbolicIconImage
-from quodlibet.util import connect_obj
+from quodlibet.util import connect_obj, cmp
 from quodlibet.util.library import background_filter
 
 from .models import (CollectionTreeStore, CollectionSortModel,
@@ -78,7 +79,7 @@ class CollectionBrowser(Browser, util.InstanceTracker):
     name = _("Album Collection")
     accelerated_name = _("Album _Collection")
     keys = ["AlbumCollection", "CollectionBrowser"]
-    priority = 5
+    priority = 6
 
     __model = None
 
@@ -155,6 +156,14 @@ class CollectionBrowser(Browser, util.InstanceTracker):
         model_filter.set_visible_func(self.__parse_query)
         view.set_model(model_filter)
 
+        def cmpa(a, b):
+            """Like cmp but treats values that evaluate to false as inf"""
+            if not a and b:
+                return 1
+            if not b and a:
+                return -1
+            return cmp(a, b)
+
         def cmp_rows(model, i1, i2, data):
             t1, t2 = model[i1][0], model[i2][0]
             pos1 = _ORDERING.get(t1, 0)
@@ -166,10 +175,10 @@ class CollectionBrowser(Browser, util.InstanceTracker):
                 return cmp(util.human_sort_key(t1), util.human_sort_key(t2))
 
             a1, a2 = t1.album, t2.album
-            return (cmp(a1.peoplesort and a1.peoplesort[0],
-                        a2.peoplesort and a2.peoplesort[0]) or
-                    cmp(a1.date or "ZZZZ", a2.date or "ZZZZ") or
-                    cmp((a1.sort, a1.key), (a2.sort, a2.key)))
+            return (cmpa(a1.peoplesort, a2.peoplesort) or
+                    cmpa(a1.date, a2.date) or
+                    cmpa(a1.sort, a2.sort) or
+                    cmp(a1.key, a2.key))
 
         model_sort.set_sort_func(0, cmp_rows)
         model_sort.set_sort_column_id(0, Gtk.SortType.ASCENDING)
@@ -250,6 +259,7 @@ class CollectionBrowser(Browser, util.InstanceTracker):
         view.connect("drag-data-get", self.__drag_data_get)
 
         self.connect("destroy", self.__destroy)
+        self.connect('key-press-event', self.__key_pressed, library.librarian)
 
         self.show_all()
 
@@ -282,9 +292,10 @@ class CollectionBrowser(Browser, util.InstanceTracker):
 
     def __update_filter(self, entry, text):
         self.__filter = None
-        if not Query.match_all(text):
-            tags = self.__model.tags + ["album"]
-            self.__filter = Query(text, star=tags).search
+        star = self.__model.tags + ["album"]
+        query = self.__search.get_query(star)
+        if not query.matches_all:
+            self.__filter = query.search
         self.__bg_filter = background_filter()
 
         self.view.get_model().refilter()
@@ -333,6 +344,24 @@ class CollectionBrowser(Browser, util.InstanceTracker):
         if songs is not None:
             GLib.idle_add(self.songs_selected, songs)
 
+    def __key_pressed(self, widget, event, librarian):
+        if qltk.is_accel(event, "<Primary>I"):
+            songs = self.__get_selected_songs()
+            if songs:
+                window = Information(librarian, songs, self)
+                window.show()
+            return True
+        elif qltk.is_accel(event, "<Primary>Return", "<Primary>KP_Enter"):
+            qltk.enqueue(self.__get_selected_songs(sort=True))
+            return True
+        elif qltk.is_accel(event, "<alt>Return"):
+            songs = self.__get_selected_songs()
+            if songs:
+                window = SongProperties(librarian, songs, self)
+                window.show()
+            return True
+        return False
+
     def can_filter_albums(self):
         return True
 
@@ -341,6 +370,7 @@ class CollectionBrowser(Browser, util.InstanceTracker):
                   [self.__albums.get(k) for k in album_keys] if a is not None]
         if albums:
             self.view.select_album(albums[0], unselect=True)
+            self.view.grab_focus()
         for album in albums[1:]:
             self.view.select_album(album, unselect=False)
 
@@ -349,7 +379,7 @@ class CollectionBrowser(Browser, util.InstanceTracker):
 
     def filter_text(self, text):
         self.__search.set_text(text)
-        if Query.is_parsable(text):
+        if Query(text).is_parsable:
             self.__update_filter(self.__search, text)
             self.activate()
 
@@ -357,7 +387,7 @@ class CollectionBrowser(Browser, util.InstanceTracker):
         return self.__search.get_text()
 
     def unfilter(self):
-        pass
+        self.filter_text("")
 
     def activate(self):
         self.view.get_selection().emit('changed')

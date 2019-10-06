@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License version 2 as
-# published by the Free Software Foundation
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
 
 """Constants used in various parts of QL, mostly strings."""
 
@@ -32,6 +33,9 @@ class Version(tuple):
         inst.message = kwargs.pop("message", "")
         return inst
 
+    def __init__(self, *args, **kwargs):
+        pass
+
     def human_version(self):
         return ".".join(map(str, self))
 
@@ -52,26 +56,23 @@ class MinVersions(object):
     """Dependency requirements for Quod Libet / Ex Falso"""
 
     PYTHON2 = Version("Python2", 2, 7)
-    PYTHON3 = Version("Python3", 3, 4)
-    MUTAGEN = Version("Mutagen", 1, 32,
+    PYTHON3 = Version("Python3", 3, 5)
+    MUTAGEN = Version("Mutagen", 1, 34,
         message="Use the Quod Libet unstable PPAs/repos to get a newer "
                 "mutagen version.")
-    GTK = Version("GTK+", 3, 14)
-    PYGOBJECT = Version("PyGObject", 3, 14)
-    GSTREAMER = Version("GStreamer", 1, 4)
+    GTK = Version("GTK+", 3, 18)
+    PYGOBJECT = Version("PyGObject", 3, 18)
+    GSTREAMER = Version("GStreamer", 1, 8)
 
 
-VERSION_TUPLE = Version("", 3, 10, -1)
+VERSION_TUPLE = Version("", 4, 3, -1)
 VERSION = str(VERSION_TUPLE)
 
 # entry point for the user guide / wiki
-BRANCH_NAME = "master"
-DOCS_BASE_URL = "https://quodlibet.readthedocs.org/en/%s"
-DOCS_LATEST = DOCS_BASE_URL % "latest"
-DOCS_BASE_URL %= BRANCH_NAME if BRANCH_NAME != "master" else "latest"
-ONLINE_HELP = DOCS_BASE_URL + "/guide/index.html"
-SEARCH_HELP = DOCS_BASE_URL + "/guide/searching.html"
-SHORTCUTS_HELP = DOCS_BASE_URL + "/guide/shortcuts.html"
+_DOCS_BASE_URL = "https://quodlibet.readthedocs.org/en/latest"
+ONLINE_HELP = _DOCS_BASE_URL + "/guide/index.html"
+SEARCH_HELP = _DOCS_BASE_URL + "/guide/searching.html"
+SHORTCUTS_HELP = _DOCS_BASE_URL + "/guide/shortcuts.html"
 
 # Email used as default for reading/saving per-user data in tags, etc.
 EMAIL = os.environ.get("EMAIL", "quodlibet@lists.sacredchao.net")
@@ -81,7 +82,7 @@ SUPPORT_EMAIL = "quod-libet-development@googlegroups.com"
 
 # about dialog, --version etc.
 WEBSITE = "https://quodlibet.readthedocs.org/"
-COPYRIGHT = u"Copyright 2004-2017"
+COPYRIGHT = u"Copyright 2004-2019"
 
 AUTHORS = sorted(u"""\
 Alexandre Passos
@@ -92,6 +93,7 @@ Andreas Bombe
 Andrew Chadwick
 Anton Shestakov
 Ari Pollak
+Arkadiy Illarionov
 Aymeric Mansoux
 Bastian Kleineidam
 Bastien Gorissen
@@ -104,14 +106,17 @@ Christine Spang
 Christoph Reiter
 Corentin Néau
 David Kågedal
+David Morris
 David Schneider
 Decklin Foster
 Didier Villevalois
 Eduardo Gonzalez
+Eoin O'Neill
 Eric Casteleijn
 Erich Schubert
 Eric Le Lay
 Federico Pelloni
+Felicián Németh
 Felix Krull
 Florian Demmer
 Fredrik Strupe
@@ -120,6 +125,7 @@ Hans Scholze
 Iñigo Serna
 Jacob Lee
 Jakob Gahde
+Jakub Wilk
 Jan Arne Petersen
 Jan Path
 Javier Kohen
@@ -134,6 +140,7 @@ Joshua Homan
 Joshua Kwan
 Lalo Martins
 Lee Willis
+Ludovic Druette
 Lukáš Lalinský
 Markus Koller
 Martijn Pieters
@@ -145,17 +152,23 @@ Nicholas J. Michalek
 Nick Boultbee
 Niklas Janlert
 Nikolai Prokoschenko
+Olli Helin
+Peter Simonyi
+Peter Strulo
 Philipp Müller
 Philipp Weis
+Phoenix Dailey
 Quincy John Hamilton
 Remi Vanicat
 Robert Muth
+Ruud van Asseldonk
 Ryan Turner
 Sebastian Thürrschmidt
 Simonas Kazlauskas
 Simon Larsen
 Steven Robertson
 Thomas Vogt
+Till Berger
 Tobias Wolf
 Tomasz Miasko
 Tomasz Torcz
@@ -168,9 +181,25 @@ Zack Weinberg
 Vimalan Reddy
 Jason Heard
 David Pérez Carmona
-Jakub Wilk
 IBBoard@github
 CreamyCookie@github
+Sauyon Lee
+Thomas Leberbauer
+Kristian Laakkonen
+Emanuele Baldino
+Peter F. Patel-Schneider
+Pete Beardmore
+Muges@github
+Meriipu@github
+Jonas Platte
+Eyenseo@github
+dpitch40@github
+sphh@github
+zsau@github
+luk1337@github
+luzpaz@github
+a-vrma@github
+Phidica@github
 """.strip().split("\n"))
 
 TRANSLATORS = sorted(u"""
@@ -179,6 +208,7 @@ Alexandre Passos (pt)
 Andreas Bertheussen (nb)
 Olivier Humbert (fr)
 Anton Shestakov (ru)
+Avi Markovitz (he)
 Bastian Kleineidam (de)
 Bastien Gorissen (fr)
 Byung-Hee HWANG (ko)
@@ -228,10 +258,13 @@ Yasushi Iwata (ja)
 Николай Прокошенко (ru)
 Ростислав "zbrox" Райков (bg)
 Сергей Федосеев (ru)
-scootergrisen@github (da)
+scootergrisen (da)
 Marek Suchánek (cs)
 Till Berger (de)
 Jean-Michel Pouré (fr)
+Kristian Laakkonen (fi)
+Kirill Romanov (ru)
+wvxwxvw@github (ru)
 """.strip().splitlines())
 
 ARTISTS = sorted(u"""\

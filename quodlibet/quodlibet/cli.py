@@ -1,9 +1,9 @@
-# -*- coding: utf-8 -*-
 # Copyright 2014,2016 Nick Boultbee
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License version 2 as
-# published by the Free Software Foundation
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
 
 import os
 
@@ -77,8 +77,9 @@ def process_arguments(argv):
                 "hide-window", "show-window", "toggle-window",
                 "focus", "quit", "unfilter", "refresh", "force-previous"]
     controls_opt = ["seek", "repeat", "query", "volume", "filter",
-                    "set-rating", "set-browser", "open-browser", "shuffle",
-                    "song-list", "queue", "stop-after"]
+                    "rating", "set-browser", "open-browser", "shuffle",
+                    "queue", "stop-after", "random", "repeat-type",
+                    "shuffle-type", "add-location"]
 
     options = util.OptionParser(
         "Quod Libet", const.VERSION,
@@ -100,6 +101,8 @@ def process_arguments(argv):
         ("stop", _("Stop playback")),
         ("volume-up", _("Turn up volume")),
         ("volume-down", _("Turn down volume")),
+        ("rating-up", _("Increase rating of playing song by one star")),
+        ("rating-down", _("Decrease rating of playing song by one star")),
         ("status", _("Print player status")),
         ("hide-window", _("Hide main window")),
         ("show-window", _("Show main window")),
@@ -119,18 +122,18 @@ def process_arguments(argv):
 
     for opt, help, arg in [
         ("seek", _("Seek within the playing song"), _("[+|-][HH:]MM:SS")),
-        ("shuffle", _("Set or toggle shuffle mode"), "[0|1|t"),
+        ("shuffle", _("Set or toggle shuffle mode"), "0|1|t"),
+        ("shuffle-type", _("Set shuffle mode type"), "random|weighted|off"),
         ("repeat", _("Turn repeat off, on, or toggle it"), "0|1|t"),
-        ("volume", _("Set the volume"), "(+|-|)0..100"),
+        ("repeat-type", _("Set repeat mode type"), "current|all|one|off"),
+        ("volume", _("Set the volume"), "[+|-]0..100"),
         ("query", _("Search your audio library"), _("query")),
         ("play-file", _("Play a file"), C_("command", "filename")),
-        ("set-rating", _("Rate the playing song"), "0.0..1.0"),
+        ("rating", _("Set rating of playing song"), "[+|-]0.0..1.0"),
         ("set-browser", _("Set the current browser"), "BrowserName"),
         ("stop-after", _("Stop after the playing song"), "0|1|t"),
         ("open-browser", _("Open a new browser"), "BrowserName"),
         ("queue", _("Show or hide the queue"), "on|off|t"),
-        ("song-list",
-            _("Show or hide the main song list (deprecated)"), "on|off|t"),
         ("random", _("Filter on a random value"), C_("command", "tag")),
         ("filter", _("Filter on a tag value"), _("tag=value")),
         ("enqueue", _("Enqueue a file or query"), "%s|%s" % (
@@ -141,6 +144,8 @@ def process_arguments(argv):
             _("query")),
         ("unqueue", _("Unqueue a file or query"), "%s|%s" % (
             C_("command", "filename"), _("query"))),
+        ("add-location", _("Add a file or directory to the library"),
+            _("location")),
             ]:
         options.add(opt, help=help, arg=arg)
 
@@ -149,11 +154,14 @@ def process_arguments(argv):
     options.add("screen", arg="dummy")
 
     def is_vol(str):
-        if str[0] in '+-':
-            if len(str) == 1:
-                return True
-            str = str[1:]
-        return str.isdigit()
+        if len(str) == 1 and str[0] in '+-':
+            return True
+        return is_float(str)
+
+    def is_rate(str):
+        if len(str) == 1 and str[0] in '+-':
+            return True
+        return is_float(str)
 
     def is_time(str):
         if str[0] not in "+-0123456789":
@@ -176,10 +184,12 @@ def process_arguments(argv):
 
     validators = {
         "shuffle": ["0", "1", "t", "on", "off", "toggle"].__contains__,
+        "shuffle-type": ["random", "weighted", "off", "0"].__contains__,
         "repeat": ["0", "1", "t", "on", "off", "toggle"].__contains__,
+        "repeat-type": ["current", "all", "one", "off", "0"].__contains__,
         "volume": is_vol,
         "seek": is_time,
-        "set-rating": is_float,
+        "rating": is_rate,
         "stop-after": ["0", "1", "t"].__contains__,
         }
 
@@ -217,6 +227,10 @@ def process_arguments(argv):
             queue("volume +")
         elif command == "volume-down":
             queue("volume -")
+        elif command == "rating-up":
+            queue("rating +")
+        elif command == "rating-down":
+            queue("rating -")
         elif command == "enqueue" or command == "unqueue":
             try:
                 filename = uri2fsn(arg)
@@ -236,6 +250,13 @@ def process_arguments(argv):
                     filename = arg
                 filename = os.path.abspath(util.path.expanduser(arg))
                 queue("play-file", filename)
+        elif command == 'add-location':
+            try:
+                path = uri2fsn(arg)
+            except ValueError:
+                path = arg
+            path = os.path.abspath(util.path.expanduser(arg))
+            queue("add-location", path)
         elif command == "print-playing":
             try:
                 queue("print-playing", args[0])

@@ -1,10 +1,10 @@
-# -*- coding: utf-8 -*-
 # Copyright 2004-2009 Joe Wreschnig, Michael Urman, Steven Robertson
 #           2011-2017 Nick Boultbee
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License version 2 as
-# published by the Free Software Foundation
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
 
 from gi.repository import GObject, Gtk
 
@@ -194,8 +194,7 @@ class IndicatorMenu(Gtk.Menu):
         submenu = self._playlists_item.get_submenu()
         if submenu:
             submenu.destroy()
-        playlist_menu = PlaylistMenu([song], PlaylistsBrowser.playlists(),
-                                     self._app.librarian)
+        playlist_menu = PlaylistMenu([song], PlaylistsBrowser.playlists())
 
         def on_new(widget, playlist):
             PlaylistsBrowser.changed(playlist)
@@ -205,7 +204,4 @@ class IndicatorMenu(Gtk.Menu):
         self._playlists_item.show_all()
 
     def _on_play_pause(self, menuitem, player):
-        if player.song:
-            player.paused ^= True
-        else:
-            player.reset()
+        player.playpause()

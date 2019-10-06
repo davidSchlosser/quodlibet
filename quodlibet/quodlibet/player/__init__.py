@@ -1,18 +1,16 @@
-# -*- coding: utf-8 -*-
 # Copyright 2007 Joe Wreschnig
 #           2013 Christoph Reiter
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License version 2 as
-# published by the Free Software Foundation
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
 
 import importlib
 
 from quodlibet import util
-from quodlibet.compat import swap_to_string, text_type
 
 
-@swap_to_string
 class PlayerError(Exception):
     """Error raised by player loading/initialization and emitted by the
     error signal during playback.
@@ -30,7 +28,7 @@ class PlayerError(Exception):
             u"\n" + self.long_desc if self.long_desc else u"")
 
     def __bytes__(self):
-        return text_type(self).encode('utf-8')
+        return str(self).encode('utf-8')
 
     def __repr__(self):
         return "%s(%r, %r)" % (
@@ -61,8 +59,7 @@ def init_backend(backend_name):
 
     try:
         backend = importlib.import_module(modulename)
-    except Exception as e:
-        util.print_exc()
+    except ImportError as e:
         util.reraise(PlayerError, str(e))
     else:
         return backend

@@ -6,11 +6,12 @@ Downloads
 =========
 
 ================ ================================================ ==========================================
-**Linux:**       |ubuntu-logo| :ref:`Ubuntu <ubuntu>`             |debian-logo| :ref:`Debian <debian>`
+**Linux:**       |flatpak-logo| :ref:`Flatpak <flatpak>`
+   \             |ubuntu-logo| :ref:`Ubuntu <ubuntu>`             |debian-logo| :ref:`Debian <debian>`
    \             |fedora-logo| :ref:`Fedora <fedora>`             |opensuse-logo| :ref:`openSUSE <opensuse>`
    \             |arch-logo| :ref:`Arch Linux <arch>`
 **Windows:**     |windows-logo| :ref:`Windows <windows>`
-**Mac OS X:**    |macosx-logo| :ref:`Mac OS X <macosx>`
+**macOS:**       |macosx-logo| :ref:`macOS <macosx>`
 **Development:** |source-logo| :ref:`Release Tarballs <tarballs>`
 ================ ================================================ ==========================================
 
@@ -27,6 +28,15 @@ All files are signed with the following key: `0EBF 782C 5D53 F7E5 FB02  A667 46B
 .. include:: tables/default.rst
 
 For old releases see the `full file listing <https://github.com/quodlibet/quodlibet/releases>`__.
+
+
+.. _flatpak:
+
+|flatpak-logo| Flatpak
+----------------------
+
+`Quod Libet on Flathub
+<https://flathub.org/apps/details/io.github.quodlibet.QuodLibet>`__
 
 
 .. _ubuntu:
@@ -121,13 +131,11 @@ For old releases see the `full file listing <https://github.com/quodlibet/quodli
 
 .. _macosx:
 
-|macosx-logo| Mac OS X
-----------------------
+|macosx-logo| macOS
+-------------------
 
 .. include:: tables/osx_quodlibet.rst
 
 .. include:: tables/osx_exfalso.rst
-
-The latest development bundle: `QuodLibet-latest.dmg <https://bitbucket.org/lazka/quodlibet/downloads/QuodLibet-latest.dmg>`__
 
 For old releases see the `full file listing <https://github.com/quodlibet/quodlibet/releases>`__.

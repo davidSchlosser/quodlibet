@@ -1,15 +1,15 @@
-# -*- coding: utf-8 -*-
 # Copyright 2014 Christoph Reiter
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License version 2 as
-# published by the Free Software Foundation
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
 
 import unicodedata
 import sys
+from urllib.request import urlopen
 
 from quodlibet.util import cached_func
-from quodlibet.compat import iteritems, urlopen, xrange, unichr
 
 
 _DIACRITIC_CACHE = {
@@ -267,7 +267,7 @@ def get_decomps_mapping(regenerate=False):
         if line.startswith("#"):
             continue
 
-        to_uni = lambda x: unichr(int(x, 16))
+        to_uni = lambda x: chr(int(x, 16))
         is_letter = lambda x: unicodedata.category(x) in ("Lu", "Ll", "Lt")
 
         cp, line = line.split(";", 1)
@@ -317,7 +317,7 @@ def get_punctuation_mapping(regenerate=False):
         char, repls = line.split(";", 2)[:2]
         char = char.strip()
         repls = repls.split()
-        to_uni = lambda x: unichr(int(x, 16))
+        to_uni = lambda x: chr(int(x, 16))
         char = to_uni(char)
         repls = [to_uni(r) for r in repls]
 
@@ -336,7 +336,7 @@ def get_punctuation_mapping(regenerate=False):
             mapping[repls] = mapping.get(repls, u"") + char
 
     # if any of the equal chars is also ascii + punct we can replace
-    # it aswell
+    # it as well
     for ascii_, uni in mapping.items():
         also_ascii = [c for c in uni if is_ascii(c) and is_punct(c)]
         for c in also_ascii:
@@ -361,8 +361,8 @@ def diacritic_for_letters(regenerate=False):
         return _DIACRITIC_CACHE
 
     d = {}
-    for i in xrange(sys.maxunicode):
-        u = unichr(i)
+    for i in range(sys.maxunicode):
+        u = chr(i)
         n = unicodedata.normalize("NFKD", u)
         if len(n) <= 1:
             continue
@@ -382,7 +382,7 @@ def generate_re_mapping(_diacritic_for_letters):
     letter_to_variants = {}
 
     # combine combining characters with the ascii chars
-    for dia, letters in iteritems(_diacritic_for_letters):
+    for dia, letters in _diacritic_for_letters.items():
         for c in letters:
             unichar = unicodedata.normalize("NFKC", c + dia)
             letter_to_variants.setdefault(c, []).append(unichar)
@@ -397,7 +397,7 @@ def generate_re_mapping(_diacritic_for_letters):
 @cached_func
 def get_replacement_mapping():
     """Returns a dict mapping a sequence of characters to another sequence
-    of chracters.
+    of characters.
 
     If a key occurs in a text, it should also match any of the characters in
     in the value.
@@ -406,16 +406,16 @@ def get_replacement_mapping():
     mapping = {}
 
     # use _DIACRITIC_CACHE and create a lookup table
-    for cp, repl in iteritems(
-            generate_re_mapping(diacritic_for_letters(regenerate=False))):
+    for cp, repl in generate_re_mapping(
+            diacritic_for_letters(regenerate=False)).items():
         mapping.setdefault(cp, []).extend(repl)
 
     # add more from the UCA decomp dataset
-    for cp, repl in iteritems(get_decomps_mapping(regenerate=False)):
+    for cp, repl in get_decomps_mapping(regenerate=False).items():
         mapping.setdefault(cp, []).extend(repl)
 
     # and some punctuation
-    for cp, repl in iteritems(get_punctuation_mapping(regenerate=False)):
+    for cp, repl in get_punctuation_mapping(regenerate=False).items():
         mapping.setdefault(cp, []).extend(repl)
 
     return mapping

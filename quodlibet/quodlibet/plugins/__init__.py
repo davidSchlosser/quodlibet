@@ -1,9 +1,9 @@
-# -*- coding: utf-8 -*-
 # Copyright 2012 - 2014 Christoph Reiter, Nick Boultbee
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License version 2 as
-# published by the Free Software Foundation
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
 
 from quodlibet import _
 from quodlibet import config
@@ -12,7 +12,6 @@ from quodlibet.util.modulescanner import ModuleScanner
 from quodlibet.util.dprint import print_d
 from quodlibet.util.config import ConfigProxy
 from quodlibet.qltk.ccb import ConfigCheckButton
-from quodlibet.compat import itervalues, iteritems, listkeys, string_types
 
 
 def init(folders=None, disable_plugins=False):
@@ -150,7 +149,7 @@ class Plugin(object):
     @property
     def tags(self):
         tags = getattr(self.cls, "PLUGIN_TAGS", [])
-        if isinstance(tags, string_types):
+        if isinstance(tags, str):
             tags = [tags]
         return tags
 
@@ -277,14 +276,14 @@ class PluginManager(object):
 
     @property
     def _modules(self):
-        return itervalues(self.__scanner.modules)
+        return self.__scanner.modules.values()
 
     @property
     def _plugins(self):
         """All registered plugins"""
 
         plugins = []
-        for module in itervalues(self.__modules):
+        for module in self.__modules.values():
             for plugin in module.plugins:
                 plugins.append(plugin)
         return plugins
@@ -368,7 +367,7 @@ class PluginManager(object):
         """module name: list of error message text lines"""
 
         errors = {}
-        for name, error in iteritems(self.__scanner.failures):
+        for name, error in self.__scanner.failures.items():
             exception = error.exception
             if isinstance(exception, PluginImportException):
                 if not exception.should_show():
@@ -382,7 +381,7 @@ class PluginManager(object):
     def quit(self):
         """Disable plugins and tell all handlers to clean up"""
 
-        for name in listkeys(self.__modules):
+        for name in list(self.__modules.keys()):
             self.__remove_module(name)
 
     def __remove_module(self, name):
@@ -428,15 +427,6 @@ def plugin_enabled(plugin):
     return enabled
 
 
-def get_config_option(plugin_cls, option):
-    try:
-        prefix = plugin_cls.CONFIG_SECTION
-    except AttributeError:
-        prefix = plugin_cls.PLUGIN_ID.lower().replace(" ", "_")
-
-    return "%s_%s" % (prefix, option)
-
-
 class PluginConfig(ConfigProxy):
     """A proxy for a Config object that can be used by plugins.
 
@@ -464,14 +454,24 @@ class PluginConfig(ConfigProxy):
 
 class PluginConfigMixin(object):
     """
-    Mixin for storage and editing of plugin config in a standard way
-    Will use `CONFIG_SECTION`, if defined, for storing config, otherwise,
-    it will base the keys on `PLUGIN_ID`.
+    Mixin for storage and editing of plugin config in a standard way.
     """
+
+    CONFIG_SECTION = ""
+    """If defined, the section for storing config,
+        otherwise, it will based on a munged `PLUGIN_ID`"""
 
     @classmethod
     def _config_key(cls, name):
-        return get_config_option(cls, name)
+        return cls._get_config_option(name)
+
+    @classmethod
+    def _get_config_option(cls, option):
+        prefix = cls.CONFIG_SECTION
+        if not prefix:
+            prefix = cls.PLUGIN_ID.lower().replace(" ", "_")
+
+        return "%s_%s" % (prefix, option)
 
     @classmethod
     def config_get(cls, name, default=""):
@@ -490,6 +490,12 @@ class PluginConfigMixin(object):
     def config_get_bool(cls, name, default=False):
         """Gets a config boolean for this plugin"""
         return config.getboolean(PM.CONFIG_SECTION, cls._config_key(name),
+                                 default)
+
+    @classmethod
+    def config_get_stringlist(cls, name, default=False):
+        """Gets a config string list for this plugin"""
+        return config.getstringlist(PM.CONFIG_SECTION, cls._config_key(name),
                                  default)
 
     def config_entry_changed(self, entry, key):

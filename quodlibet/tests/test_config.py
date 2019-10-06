@@ -1,14 +1,13 @@
-# -*- coding: utf-8 -*-
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License version 2 as
-# published by the Free Software Foundation
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
 
 import os
 from quodlibet.config import RatingsPrefs
 from tests import TestCase, mkstemp
 
 from quodlibet import config
-from quodlibet.compat import PY2
 
 
 class Tconfig(TestCase):
@@ -52,12 +51,8 @@ class TRatingsPrefs(TestCase):
         self.failUnlessEqual(self.prefs.number, self.initial_number)
         self.failUnlessEqual(self.prefs.precision, 1.0 / self.initial_number)
         symbol_full = config.INITIAL["settings"]["rating_symbol_full"]
-        if PY2:
-            symbol_full = symbol_full.decode("utf-8")
         self.failUnlessEqual(self.prefs.full_symbol, symbol_full)
         symbol_blank = config.INITIAL["settings"]["rating_symbol_blank"]
-        if PY2:
-            symbol_blank = symbol_blank.decode("utf-8")
         self.failUnlessEqual(self.prefs.blank_symbol, symbol_blank)
 
     def test_caching(self):

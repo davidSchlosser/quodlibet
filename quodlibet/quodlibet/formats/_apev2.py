@@ -1,14 +1,13 @@
-# -*- coding: utf-8 -*-
 # Copyright 2004-2005 Joe Wreschnig, Michael Urman
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License version 2 as
-# published by the Free Software Foundation
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
 
 import mutagen.apev2
 
 from quodlibet.util.path import get_temp_cover_file
-from quodlibet.compat import iteritems, iterkeys
 
 from ._audio import AudioFile
 from ._image import APICType, EmbeddedImage
@@ -90,7 +89,7 @@ class APEv2File(AudioFile):
              "original artist": "originalartist",
              "mixartist": "remixer",
     }
-    SNART = dict([(v, k) for k, v in iteritems(TRANS)])
+    SNART = dict([(v, k) for k, v in TRANS.items()])
 
     can_change_images = True
 
@@ -139,7 +138,7 @@ class APEv2File(AudioFile):
                 tag = mutagen.apev2.APEv2()
 
         # Remove any text keys we read in
-        for key in iterkeys(tag):
+        for key in list(tag.keys()):
             value = tag[key]
             if (value.kind == mutagen.apev2.TEXT and
                 key.lower() not in self.IGNORE):
@@ -165,7 +164,7 @@ class APEv2File(AudioFile):
             return
 
         primary = None
-        for key, value in iteritems(tag):
+        for key, value in tag.items():
             primary = (key, value)
             cover_type = get_cover_type(key, value)
             if cover_type == APICType.COVER_FRONT:
@@ -181,7 +180,7 @@ class APEv2File(AudioFile):
             return []
 
         images = []
-        for key, value in iteritems(tag):
+        for key, value in tag.items():
             image = parse_cover(key, value)
             if image is not None:
                 images.append(image)

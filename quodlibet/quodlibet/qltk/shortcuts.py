@@ -1,9 +1,9 @@
-# -*- coding: utf-8 -*-
 # Copyright 2016 Christoph Reiter
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License version 2 as
-# published by the Free Software Foundation
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
 
 from gi.repository import Gtk
 
@@ -38,7 +38,7 @@ SHORTCUTS = [
     ]),
     (_("Text Entries"), [
         ("<Primary>Z",
-         _("Collapses the element or select the parent element")),
+         _("Undo the last change")),
         ("<Primary><Shift>Z", _("Redo the last undone change")),
     ]),
     (_("Paned Browser"), [
@@ -54,7 +54,7 @@ def build_shortcut_window(data):
 
     # Note: gtk+ is picky about the order of adding/showing things because
     # this is usually done through XML. e.g. adding shortcuts after a section
-    # wont make them show up in the search etc..
+    # won't make them show up in the search etc..
     w = Gtk.ShortcutsWindow()
     section = Gtk.ShortcutsSection()
     section.show()
@@ -93,6 +93,7 @@ def show_shortcuts(parent):
         # window placement. This fixes the jumping around and wrong position
         # with some WMs and under Windows.
         window.hide()
+        window.unrealize()
         window.show()
     else:
         util.website(const.SHORTCUTS_HELP)

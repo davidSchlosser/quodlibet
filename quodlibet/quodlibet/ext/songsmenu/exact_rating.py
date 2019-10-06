@@ -1,11 +1,11 @@
-# -*- coding: utf-8 -*-
 # Copyright 2014 Jan Path
 #           2014 Christoph Reiter
 #           2016 Nick Boultbee
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License version 2 as
-# published by the Free Software Foundation
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
 
 from gi.repository import Gtk
 
@@ -51,7 +51,7 @@ class ExactRating(SongsMenuPlugin):
         if (count > 1 and config.getboolean("browsers",
                 "rating_confirm_multiple")):
             confirm_dialog = ConfirmRateMultipleDialog(
-                self.plugin_window, count, value)
+                self.plugin_window, _("Change _Rating"), count, value)
             if confirm_dialog.run() != Gtk.ResponseType.YES:
                 return
 

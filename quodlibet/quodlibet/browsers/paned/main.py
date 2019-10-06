@@ -1,23 +1,24 @@
-# -*- coding: utf-8 -*-
 # Copyright 2004-2008 Joe Wreschnig, Michael Urman, Iñigo Serna
 #           2009,2010 Steven Robertson
 #           2009-2013 Christoph Reiter
-#           2011,2013 Nick Boultbee
+#           2011-2018 Nick Boultbee
 #                2017 Fredrik Strupe
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License version 2 as
-# published by the Free Software Foundation
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
 
 from gi.repository import Gtk, GLib
 
+from quodlibet import app
 from quodlibet import config
 from quodlibet import qltk
 from quodlibet import util
 from quodlibet import _
 from quodlibet.browsers import Browser
 from quodlibet.formats import PEOPLE
-from quodlibet.query import Query
+from quodlibet.qltk import is_accel
 from quodlibet.qltk.songlist import SongList
 from quodlibet.qltk.completion import LibraryTagCompletion
 from quodlibet.qltk.searchbar import SearchBarBox
@@ -26,7 +27,7 @@ from quodlibet.util.library import background_filter
 from quodlibet.util import connect_destroy
 from quodlibet.qltk.paned import ConfigMultiRHPaned
 
-from .prefs import PreferencesButton
+from .prefs import PreferencesButton, ColumnMode
 from .util import get_headers
 from .pane import Pane
 
@@ -54,9 +55,9 @@ class PanedBrowser(Browser, util.InstanceTracker):
         container.remove(self)
 
     @classmethod
-    def set_all_wide_mode(klass, value):
+    def set_all_column_mode(klass, value):
         for browser in klass.instances():
-            browser.set_wide_mode(value)
+            browser.set_column_mode(value)
 
     @classmethod
     def set_all_panes(klass):
@@ -80,6 +81,7 @@ class PanedBrowser(Browser, util.InstanceTracker):
                            accel_group=self.accelerators)
         sbb.connect('query-changed', self.__text_parse)
         sbb.connect('focus-out', self.__focus)
+        sbb.connect('key-press-event', self.__sb_key_pressed)
         self._sb_box = sbb
 
         align = Align(sbb, left=6, right=6, top=6)
@@ -114,14 +116,17 @@ class PanedBrowser(Browser, util.InstanceTracker):
     def __destroy(self, *args):
         del self._sb_box
 
-    def set_wide_mode(self, do_wide):
+    def set_column_mode(self, mode):
         hor = Gtk.Orientation.HORIZONTAL
         ver = Gtk.Orientation.VERTICAL
 
-        if do_wide:
+        if mode == ColumnMode.WIDE:
             self.main_box.props.orientation = hor
             self.multi_paned.change_orientation(horizontal=False)
-        else:
+        elif mode == ColumnMode.COLUMNAR:
+            self.main_box.props.orientation = hor
+            self.multi_paned.change_orientation(horizontal=True)
+        else:  # ColumnMode.SMALL
             self.main_box.props.orientation = ver
             self.multi_paned.change_orientation(horizontal=True)
 
@@ -136,6 +141,14 @@ class PanedBrowser(Browser, util.InstanceTracker):
 
     def __text_parse(self, bar, text):
         self.activate()
+
+    def __sb_key_pressed(self, entry, event):
+        if (is_accel(event, "<Primary>Return") or
+                is_accel(event, "<Primary>KP_Enter")):
+            songs = app.window.songlist.get_songs()
+            app.window.playlist.enqueue(songs)
+            return True
+        return False
 
     def filter_text(self, text):
         self._set_text(text)
@@ -152,13 +165,13 @@ class PanedBrowser(Browser, util.InstanceTracker):
         self._panes[-1].get_selection().emit('changed')
 
     def __added(self, library, songs):
-        songs = filter(self._filter, songs)
+        songs = list(filter(self._filter, songs))
         for pane in self._panes:
             pane.add(songs)
-            songs = filter(pane.matches, songs)
+            songs = list(filter(pane.matches, songs))
 
     def __removed(self, library, songs, remove_if_empty=True):
-        songs = filter(self._filter, songs)
+        songs = list(filter(self._filter, songs))
         for pane in self._panes:
             pane.remove(songs, remove_if_empty)
 
@@ -180,15 +193,15 @@ class PanedBrowser(Browser, util.InstanceTracker):
         return True
 
     def activate(self):
-        text = self._get_text()
-        if Query.is_parsable(text):
-            star = dict.fromkeys(SongList.star)
-            star.update(self.__star)
-            self._filter = Query(text, star.keys()).search
-            songs = filter(self._filter, self._library)
+        star = dict.fromkeys(SongList.star)
+        star.update(self.__star)
+        query = self._sb_box.get_query(star.keys())
+        if query.is_parsable:
+            self._filter = query.search
+            songs = list(filter(self._filter, self._library))
             bg = background_filter()
             if bg:
-                songs = filter(bg, songs)
+                songs = list(filter(bg, songs))
             self._panes[0].fill(songs)
 
     def scroll(self, song):
@@ -225,7 +238,8 @@ class PanedBrowser(Browser, util.InstanceTracker):
             tags = [t for t in p.tags if not t.startswith("~#")]
             self.__star.update(dict.fromkeys(tags))
 
-        self.set_wide_mode(config.getboolean("browsers", "pane_wide_mode"))
+        self.set_column_mode(config.getint("browsers", "pane_mode",
+                                           ColumnMode.SMALL))
 
     def fill_panes(self):
         self._panes[-1].inhibit()
@@ -258,6 +272,7 @@ class PanedBrowser(Browser, util.InstanceTracker):
         for pane in self._panes:
             if pane is filter_pane:
                 filter_pane.set_selected_by_tag(tag, values, True)
+                filter_pane.grab_focus()
                 return
             pane.set_selected([None], True)
 
@@ -308,8 +323,6 @@ class PanedBrowser(Browser, util.InstanceTracker):
 
     def finalize(self, restored):
         config.settext("browsers", "query_text", u"")
-        if not restored:
-            self.fill_panes()
 
     def fill(self, songs):
         GLib.idle_add(self.songs_selected, list(songs))

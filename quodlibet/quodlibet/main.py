@@ -1,17 +1,18 @@
-# -*- coding: utf-8 -*-
 # Copyright 2004-2005 Joe Wreschnig, Michael Urman, Iñigo Serna
 #           2012,2013 Christoph Reiter
-#           2010-2014 Nick Boultbee
+#           2010-2017 Nick Boultbee
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License version 2 as
-# published by the Free Software Foundation.
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
 
 import sys
 import os
 
 from senf import environ, argv as sys_argv
 
+from quodlibet import _
 from quodlibet.cli import process_arguments, exit_
 from quodlibet.util.dprint import print_d, print_, print_exc
 
@@ -36,7 +37,7 @@ def main(argv=None):
     quodlibet.init()
 
     from quodlibet import app
-    from quodlibet.qltk import add_signal_watch, Icons
+    from quodlibet.qltk import add_signal_watch
     add_signal_watch(app.quit)
 
     import quodlibet.player
@@ -46,8 +47,10 @@ def main(argv=None):
     from quodlibet import util
 
     app.name = "Quod Libet"
-    app.id = "quodlibet"
-    quodlibet.set_application_info(Icons.QUODLIBET, app.id, app.name)
+    app.description = _("Music player and music library manager")
+    app.id = "io.github.quodlibet.QuodLibet"
+    app.process_name = "quodlibet"
+    quodlibet.set_application_info(app)
 
     library_path = os.path.join(quodlibet.get_user_dir(), "songs")
 
@@ -71,7 +74,7 @@ def main(argv=None):
     app.player = player
 
     environ["PULSE_PROP_media.role"] = "music"
-    environ["PULSE_PROP_application.icon_name"] = "quodlibet"
+    environ["PULSE_PROP_application.icon_name"] = app.icon_name
 
     browsers.init()
 
@@ -98,7 +101,7 @@ def main(argv=None):
         player.init_plugins()
 
     from quodlibet.qltk import unity
-    unity.init("quodlibet.desktop", player)
+    unity.init("io.github.quodlibet.QuodLibet.desktop", player)
 
     from quodlibet.qltk.songsmenu import SongsMenu
     SongsMenu.init_plugins()
@@ -114,6 +117,8 @@ def main(argv=None):
     QUERY_HANDLER.init_plugins()
 
     from gi.repository import GLib
+
+    from quodlibet.commands import registry as cmd_registry, CommandError
 
     def exec_commands(*args):
         for cmd in cmds_todo:
@@ -139,11 +144,13 @@ def main(argv=None):
     from quodlibet.qltk.window import Window
 
     from quodlibet.plugins.events import EventPluginHandler
-    pm.register_handler(EventPluginHandler(library.librarian, player))
+    from quodlibet.plugins.gui import UserInterfacePluginHandler
+    pm.register_handler(EventPluginHandler(library.librarian, player,
+                                           app.window.songlist))
+    pm.register_handler(UserInterfacePluginHandler())
 
     from quodlibet.mmkeys import MMKeysHandler
     from quodlibet.remote import Remote, RemoteError
-    from quodlibet.commands import registry as cmd_registry, CommandError
     from quodlibet.qltk.tracker import SongTracker, FSInterface
     try:
         from quodlibet.qltk.dbus_ import DBusHandler
@@ -164,12 +171,14 @@ def main(argv=None):
     DBusHandler(player, library)
     tracker = SongTracker(library.librarian, player, window.playlist)
 
-    from quodlibet.qltk import session
-    session.init("quodlibet")
+    from quodlibet import session
+    session_client = session.init(app)
 
     quodlibet.enable_periodic_save(save_library=True)
 
-    if "start-playing" in startup_actions:
+    if ("start-playing" in startup_actions or
+            (config.getboolean("player", "restore_playing", False) and
+                config.getboolean("player", "is_playing", False))):
         player.paused = False
 
     if "start-hidden" in startup_actions:
@@ -193,7 +202,7 @@ def main(argv=None):
     quodlibet.run(window, before_quit=before_quit)
 
     app.player_options.destroy()
-    quodlibet.finish_first_session(app.id)
+    quodlibet.finish_first_session("quodlibet")
     mmkeys_handler.quit()
     remote.stop()
     fsiface.destroy()
@@ -202,5 +211,7 @@ def main(argv=None):
     quodlibet.library.save()
 
     config.save()
+
+    session_client.close()
 
     print_d("Finished shutdown.")

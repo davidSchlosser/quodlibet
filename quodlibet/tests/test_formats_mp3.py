@@ -1,9 +1,9 @@
-# -*- coding: utf-8 -*-
 # Copyright 2015 Christoph Reiter
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License version 2 as
-# published by the Free Software Foundation
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
 
 from tests import TestCase, get_data_path
 from quodlibet.formats.mp3 import MP3File
@@ -21,15 +21,21 @@ class TMP3File(TestCase):
         assert self.song2("~#channels") == 1
         assert self.song3("~#channels") == 2
 
+    def test_samplerate(self):
+        assert self.song("~#samplerate") == 44100
+        assert self.song2("~#samplerate") == 32000
+        assert self.song3("~#samplerate") == 44100
+
     def test_length(self):
-        self.assertAlmostEqual(self.song("~#length"), 3.0, 1)
+        self.assertAlmostEqual(self.song("~#length"), 3.77, 2)
         self.assertAlmostEqual(self.song2("~#length"), 1.764, 3)
         self.assertAlmostEqual(self.song3("~#length"), 0.0616, 3)
 
     def test_bitrate(self):
         self.failUnlessEqual(self.song("~#bitrate"), 32)
         self.failUnlessEqual(self.song2("~#bitrate"), 32)
-        self.failUnlessEqual(self.song3("~#bitrate"), 270)
+        # 127 with mutagen 1.39+
+        assert self.song3("~#bitrate") in [127, 270]
 
     def test_format(self):
         self.assertEqual(self.song("~format"), "MP3")

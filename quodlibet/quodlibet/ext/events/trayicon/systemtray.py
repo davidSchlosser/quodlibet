@@ -1,11 +1,11 @@
-# -*- coding: utf-8 -*-
 # Copyright 2004-2006 Joe Wreschnig, Michael Urman, Iñigo Serna
 #           2012 Christoph Reiter
 #           2013 Nick Boultbee
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License version 2 as
-# published by the Free Software Foundation
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
 
 import sys
 
@@ -124,7 +124,7 @@ class SystemTray(BaseIndicator):
                                               self.__window_delete)
 
         # If after the main loop is idle and 3 seconds have passed
-        # the tray icon isn't embedded, assume it wont be and unhide
+        # the tray icon isn't embedded, assume it won't be and unhide
         # all windows, so QL isn't 'lost'..
 
         def add_timeout():
@@ -297,11 +297,7 @@ class SystemTray(BaseIndicator):
             self.__play_pause()
 
     def __play_pause(self, *args):
-        player = app.player
-        if player.song:
-            player.paused ^= True
-        else:
-            player.reset()
+        app.player.playpause()
 
     def __scroll(self, widget, event):
         state = event.get_state()

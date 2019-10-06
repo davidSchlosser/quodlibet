@@ -1,11 +1,12 @@
-# -*- coding: utf-8 -*-
 # Copyright 2004-2008 Joe Wreschnig
-#           2009-2013 Nick Boultbee
+#           2009-2017 Nick Boultbee
 #           2011-2014 Christoph Reiter
+#           2018-2019 Peter Strulo
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License version 2 as
-# published by the Free Software Foundation
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
 
 import shutil
 
@@ -13,20 +14,10 @@ from quodlibet.util import enum
 from . import const
 from quodlibet.util.config import Config, Error
 from quodlibet.util import print_d, print_w
-from quodlibet.compat import PY2, iteritems, text_type
+from quodlibet.util import is_osx, is_windows
 
 # Some plugins can be enabled on first install
 AUTO_ENABLED_PLUGINS = ["Shuffle Playlist", "Remove Playlist Duplicates"]
-
-
-def _config_text(text):
-    # raw config values are utf-8 encoded on PY2, while they are unicode
-    # with surrogates on PY2. this makes initing the defaults work
-
-    assert isinstance(text, text_type)
-    if PY2:
-        return text.encode("utf-8")
-    return text
 
 
 # this defines the initial and default values
@@ -34,6 +25,7 @@ INITIAL = {
     # User-defined tag name -> human name mappings
     "header_maps": {
     },
+
     "player": {
         "time_remaining": "false",
         "replaygain": "on",
@@ -41,65 +33,135 @@ INITIAL = {
         "pre_amp_gain": "0.0",
         "backend": "gstbe",
         "gst_pipeline": "",
-        "gst_buffer": "3", # stream buffer duration in seconds
+
+        # stream buffer duration in seconds
+        "gst_buffer": "3",
+
         "gst_device": "",
         "gst_disable_gapless": "false",
+
+        "is_playing": "false",
+        "restore_playing": "false",
     },
     "library": {
         "exclude": "",
         "refresh_on_start": "true",
     },
+
     # State about the player, to restore on startup
     "memory": {
-        "song": "", # filename of last song
-        "seek": "0", # last song position, in milliseconds
-        "volume": "1.0", # internal volume, [0.0, 1.0]
-        "browser": "PanedBrowser", # browser name
-        "queue": "false", # on or off
-        "queue_expanded": "false", # on or off
-        "shufflequeue": "false", # on or off
-        "queue_stop_once_empty": "false", # on or off
-        "sortby": "0album", # <reversed?>tagname, song list sort
+
+        # filename of last song
+        "song": "",
+
+        # last song position, in milliseconds
+        "seek": "0",
+
+        # internal volume, [0.0, 1.0]
+        "volume": "1.0",
+
+        # browser name
+        "browser": "PanedBrowser",
+
+        "queue": "false",
+        "queue_expanded": "false",
+        "shufflequeue": "false",
+        "queue_stop_at_end": "false",
+        "queue_keep_songs": "false",
+        "queue_disable": "false",
+
+        # <reversed?>tagname, song list sort
+        "sortby": "0album",
 
         # Repeat on or off
         "repeat": "false",
+
         # The Repeat (Order) to use
         "repeat_mode": "repeat_song",
 
         # Shuffle on or off
         "shuffle": "false",
+
         # The Shuffle (Order) to use
         "shuffle_mode": "random",
-        "plugin_selection": "", # selected plugin in manager
-        "column_widths": "", # column widths in c1,w1,c2,w2... format
+
+        # selected plugin in manager
+        "plugin_selection": "",
+
+        # column widths in c1,w1,c2,w2... format
+        "column_widths": "",
+
         "column_expands": "",
     },
+
     "browsers": {
-        "query_text": "", # none/search bar text
+
+        # search bar text
+        "query_text": "",
+
         # panes in paned browser
         "panes":
             "~people\t<~year|[b][i]<~year>[/i][/b] - ><album>",
-        "pane_selection": "", # selected pane values
-        "pane_wide_mode": "0", # browser orientation
-        "equal_pane_width": "true", # equal pane width in paned browser
-        "background": "", # "global" filter for SearchBar
-        "albums": "", # album list
-        "album_sort": "0", # album sorting mode, default is title
-        "album_covers": "1", # album cover display, on/off
-        "album_substrings": "1", # include substrings in inline search
+
+        # selected pane values
+        "pane_selection": "",
+
+        # equal pane width in paned browser
+        "equal_pane_width": "true",
+
+        # "global" filter for SearchBar
+        "background": "",
+
+        # characters ignored in queries
+        "ignored_characters": "",
+
+        # album list
+        "albums": "",
+
+        # album sorting mode, default is title
+        "album_sort": "0",
+
+        # album cover display, on/off
+        "album_covers": "1",
+
+        # include substrings in inline search
+        "album_substrings": "1",
+
+        # Collections browser: tag to collect, merge or not (0 = no)
         "collection_headers": "~people 0",
-        "radio": "", # radio filter selection
-        "rating_click": "true", # click to rate song, on/off
-        "rating_confirm_multiple": "false", # confirm rating multiple songs
-        "cover_size": "-1", # max cover height/width, <= 0 is default
-        "search_limit": "false", # Show the limit widgets for SearchBar
-        "album_text": "1", # show text in covergrid view
-        "covergrid_magnification": "3.0", # show text in covergrid view
-        "covergrid_all": "0", # show "all albums" in covergrid view
+
+        # radio filter selection
+        "radio": "",
+
+        # click to rate song, on/off
+        "rating_click": "true",
+
+        # confirm rating multiple songs
+        "rating_confirm_multiple": "false",
+
+        # max cover height/width, <= 0 is default
+        "cover_size": "-1",
+
+        # Show the limit widgets for SearchBar
+        "search_limit": "false",
+
+        # Allow multiple queries in SearchBar
+        "multiple_queries": "false",
+
+        # show text in covergrid view
+        "album_text": "1",
+
+        # Cover magnifcation factor in covergrid view
+        "covergrid_magnification": "3.0",
+
+        # show "all albums" in covergrid view
+        "covergrid_all": "1",
     },
+
     # Kind of a dumping ground right now, should probably be
     # cleaned out later.
     "settings": {
+
         # scan directories, :-separated
         "scan": "",
 
@@ -116,17 +178,13 @@ INITIAL = {
         "bayesian_rating_factor": "0.0",
 
         # rating symbol (black star)
-        "rating_symbol_full": _config_text(u'\u2605'),
+        "rating_symbol_full": u'\u2605',
 
         # rating symbol (hollow star)
-        "rating_symbol_blank": _config_text(u'\u2606'),
+        "rating_symbol_blank": u'\u2606',
 
-        # Now deprecated: space-separated headers column
-        #"headers": " ".join(const.DEFAULT_COLUMNS),
-
-        # 2.6: this gets migrated from headers entry in code.
-        # TODO: re-instate columns here in > 2.6 or once most have migrated
-        #"columns": ",".join(const.DEFAULT_COLUMNS),
+        # Comma-separated columns to display in the song list
+        "columns": ",".join(const.DEFAULT_COLUMNS),
 
         # hack to disable hints, see bug #526
         "disable_hints": "false",
@@ -150,27 +208,48 @@ INITIAL = {
 
         # the pattern for the main window title
         "window_title_pattern": "~title~version~~people",
+
+        # the format of the timestamps in DateColumn
+        "datecolumn_timestamp_format": "",
+
+        # scrollbar does not fade out when inactive
+        "scrollbar_always_visible":
+            "true" if (is_osx() or is_windows()) else "false",
+
+        # Force fontconfig as PangoCairo backend
+        "pangocairo_force_fontconfig": False,
     },
+
     "rename": {
         "spaces": "false",
         "windows": "true",
         "ascii": "false",
+        "move_art": "false",
+        "move_art_overwrite": "false",
+        "remove_empty_dirs": "false",
     },
+
     "tagsfrompath": {
         "underscores": "false",
         "titlecase": "false",
         "split": "false",
         "add": "false",
     },
+
     "plugins": {
         # newline-separated plugin IDs
         "active_plugins": "\n".join(AUTO_ENABLED_PLUGINS),
+
         # Issue 1231: Maximum number of SongsMenu plugins to run at once
         "default_max_plugin_invocations": 30,
     },
+
     "editing": {
         # characters to split tags on
         "split_on": "/ & ,",
+
+        # characters used when extracting subtitles/subtags
+        "sub_split_on": "\u301c\u301c \uff08\uff09 [] () ~~ --",
 
         # ID3 encodings to try
         "id3encoding": "",
@@ -178,21 +257,28 @@ INITIAL = {
         "human_title_case": "true",
         "save_to_songs": "true",
         "save_email": const.EMAIL,
-        "alltags": "true", # show all tags, or just "human-readable" ones
+
+        # show all tags, or just "human-readable" ones
+        "alltags": "true",
+
         # Skip dialog to save or revert changes
         "auto_save_changes": "false",
-        "default_tags": "", # e.g. "title,artist"
+
+        # e.g. "title,artist"
+        "default_tags": "",
     },
+
     "albumart": {
         "prefer_embedded": "false",
         "force_filename": "false",
         "filename": "folder.jpg",
+        "search_filenames": "cover.jpg,folder.jpg,.folder.jpg",
     },
+
     "display": {
         "duration_format": "standard"
     }
 }
-
 
 # global instance
 _config = Config(version=0)
@@ -226,9 +312,9 @@ def init_defaults():
     """Fills in the defaults, so they are guaranteed to be available"""
 
     _config.defaults.clear()
-    for section, values in iteritems(INITIAL):
+    for section, values in INITIAL.items():
         _config.defaults.add_section(section)
-        for key, value in iteritems(values):
+        for key, value in values.items():
             _config.defaults.set(section, key, value)
 
 
@@ -287,6 +373,7 @@ class RatingsPrefs(object):
     """
     Models Ratings settings as configured by the user, with caching.
     """
+
     def __init__(self):
         self.__number = self.__default = None
         self.__full_symbol = self.__blank_symbol = None
@@ -360,9 +447,6 @@ class HardCodedRatingsPrefs(RatingsPrefs):
     default = float(INITIAL["settings"]["default_rating"])
     blank_symbol = INITIAL["settings"]["rating_symbol_blank"]
     full_symbol = INITIAL["settings"]["rating_symbol_full"]
-    if PY2:
-        blank_symbol = blank_symbol.decode("utf-8")
-        full_symbol = full_symbol.decode("utf-8")
 
 
 # Need an instance just for imports to work

@@ -1,13 +1,13 @@
-# -*- coding: utf-8 -*-
 # Copyright 2015 Christoph Reiter
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License version 2 as
-# published by the Free Software Foundation
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
 
 import os
 import sys
-import locale
+import tempfile
 from functools import wraps
 
 from senf import environ, argv, path2fsn
@@ -17,6 +17,10 @@ from .environment import is_linux
 
 
 environ, argv
+
+
+def cmp(a, b):
+    return (a > b) - (a < b)
 
 
 def cached_func(f):
@@ -32,29 +36,6 @@ def cached_func(f):
             res.append(f())
         return res[0]
     return wrapper
-
-
-def _verify_encoding(encoding):
-    try:
-        u"".encode(encoding)
-    except LookupError:
-        encoding = "utf-8"
-    return encoding
-
-
-@cached_func
-def get_locale_encoding():
-    """Returns the encoding defined by the locale"""
-
-    try:
-        encoding = locale.getpreferredencoding(False)
-    except locale.Error:
-        encoding = "utf-8"
-    else:
-        # python on macports can return a bugs result (empty string)
-        encoding = _verify_encoding(encoding)
-
-    return encoding
 
 
 def total_ordering(cls):
@@ -117,3 +98,11 @@ def get_ca_file():
     import certifi
 
     return os.path.join(get_module_dir(certifi), "cacert.pem")
+
+
+def NamedTemporaryFile(*args, **kwargs):
+    """Like tempfile.NamedTemporaryFile, but supports unicode paths on
+    Py2+Windows
+    """
+
+    return tempfile.NamedTemporaryFile(*args, **kwargs)

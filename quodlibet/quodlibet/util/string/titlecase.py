@@ -1,14 +1,12 @@
-# -*- coding: utf-8 -*-
 # Copyright 2007 Javier Kohen
 #      2010,2014 Nick Boultbee
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License version 2 as
-# published by the Free Software Foundation
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
 
 import unicodedata
-
-from quodlibet.compat import text_type, xrange
 
 
 # Cheat list for human title-casing in English. See Issue 424.
@@ -36,9 +34,9 @@ def iswbound(char):
 def utitle(string):
     """Title-case a string using a less destructive method than str.title."""
     new_string = string[0].capitalize()
-    # It's possible we need to capitalise the second character...
+    # It's possible we need to capitalize the second character...
     cap = iswbound(string[0])
-    for i in xrange(1, len(string)):
+    for i in range(1, len(string)):
         s = string[i]
         prev = string[i - 1]
         # Special case apostrophe in the middle of a word.
@@ -68,7 +66,7 @@ def title(string, locale="utf-8"):
     #   Lots of Japanese songs use entirely upper-case English titles,
     #   so I don't like this change... - JoeW
     #if string == string.upper(): string = string.lower()
-    if not isinstance(string, text_type):
+    if not isinstance(string, str):
         string = string.decode(locale)
     return utitle(string)
 
@@ -86,7 +84,7 @@ def _humanise(text):
         return ws[idx]
 
     words = text.split(" ")   # Yes: to preserve double spacing (!)
-    for i in xrange(1, len(words) - 1):
+    for i in range(1, len(words) - 1):
         word = words[i]
         if word in ENGLISH_INCORRECTLY_CAPITALISED_WORDS:
             prev = previous_real_word(words, i)

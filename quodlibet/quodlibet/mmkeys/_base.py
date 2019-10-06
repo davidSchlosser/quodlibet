@@ -1,9 +1,10 @@
-# -*- coding: utf-8 -*-
 # Copyright 2014 Christoph Reiter
+#           2018 Ludovic Druette
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License version 2 as
-# published by the Free Software Foundation
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
 
 
 class MMKeysImportError(ImportError):
@@ -17,6 +18,10 @@ class MMKeysAction(object):
     PREV = "prev"
     NEXT = "next"
     PLAYPAUSE = "playpause"
+    FORWARD = "forward"
+    REWIND = "rewind"
+    REPEAT = "repeat"
+    SHUFFLE = "shuffle"
 
 
 class MMKeysBackend(object):

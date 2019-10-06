@@ -8,37 +8,45 @@
 
 set -e
 
-function install_python_packages {
-    pacman --noconfirm -S --needed \
-        mingw-w64-i686-python$1 \
-        mingw-w64-i686-python$1-gobject \
-        mingw-w64-i686-python$1-cairo \
-        mingw-w64-i686-python$1-pip
+function main {
 
-    pip$1 install certifi feedparser musicbrainzngs mutagen pep8 \
-        pyflakes pytest
-
-    if [ "$1" = "2" ]; then
-        pip$1 install --no-binary ":all:" futures faulthandler
+    if [[ "$MSYSTEM" == "MINGW32" ]]; then
+        local MSYS2_ARCH="i686"
+    else
+        local MSYS2_ARCH="x86_64"
     fi
 
-}
-
-function main {
     pacman --noconfirm -Suy
 
     pacman --noconfirm -S --needed \
-        git mingw-w64-i686-gdk-pixbuf2 \
-        mingw-w64-i686-librsvg \
-        mingw-w64-i686-gtk3 \
-        mingw-w64-i686-libsoup mingw-w64-i686-gstreamer \
-        mingw-w64-i686-gst-plugins-base \
-        mingw-w64-i686-gst-plugins-good mingw-w64-i686-libsrtp \
-        mingw-w64-i686-gst-plugins-bad mingw-w64-i686-gst-libav \
-        mingw-w64-i686-gst-plugins-ugly intltool
+        git \
+        base-devel \
+        mingw-w64-$MSYS2_ARCH-gettext \
+        mingw-w64-$MSYS2_ARCH-gdk-pixbuf2 \
+        mingw-w64-$MSYS2_ARCH-librsvg \
+        mingw-w64-$MSYS2_ARCH-gtk3 \
+        mingw-w64-$MSYS2_ARCH-libsoup \
+        mingw-w64-$MSYS2_ARCH-gstreamer \
+        mingw-w64-$MSYS2_ARCH-gst-plugins-base \
+        mingw-w64-$MSYS2_ARCH-gst-plugins-good \
+        mingw-w64-$MSYS2_ARCH-libsrtp \
+        mingw-w64-$MSYS2_ARCH-gst-plugins-bad \
+        mingw-w64-$MSYS2_ARCH-gst-libav \
+        mingw-w64-$MSYS2_ARCH-gst-plugins-ugly \
+        mingw-w64-$MSYS2_ARCH-toolchain
 
-    install_python_packages 2
-    install_python_packages 3
+    pacman --noconfirm -S --needed \
+        mingw-w64-$MSYS2_ARCH-python3 \
+        mingw-w64-$MSYS2_ARCH-python3-gobject \
+        mingw-w64-$MSYS2_ARCH-python3-cairo \
+        mingw-w64-$MSYS2_ARCH-python3-pip \
+        mingw-w64-$MSYS2_ARCH-python3-pytest \
+        mingw-w64-$MSYS2_ARCH-python3-certifi \
+        mingw-w64-$MSYS2_ARCH-python3-coverage \
+        mingw-w64-$MSYS2_ARCH-python3-pycodestyle \
+        mingw-w64-$MSYS2_ARCH-python3-pyflakes
+
+    pip3 install --user -U feedparser musicbrainzngs mutagen
 }
 
 main;

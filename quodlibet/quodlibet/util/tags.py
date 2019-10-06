@@ -1,14 +1,13 @@
-# -*- coding: utf-8 -*-
 # Copyright 2007-2008 Joe Wreschnig
 #           2014 Christoph Reiter
 #      2014-2016 Nick Boultbee
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License version 2 as
-# published by the Free Software Foundation
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
 
 from quodlibet import _
-from quodlibet.compat import iteritems
 
 """Database of all known tags, their translations and how they are used"""
 
@@ -69,12 +68,23 @@ class TagName(object):
         return "%s(%r)" % (type(self).__name__, vars(self))
 
 
+def _get_role_map(tags):
+    roles = {}
+    for (name, tag) in tags.items():
+        if tag.role:
+            roles[name] = tag.role
+            if tag.has_sort:
+                roles[name + "sort"] = tag.role
+    return roles
+
+
 T = TagName
 _TAGS = dict((t.name, t) for t in [
     T("album", "us", _("album"), _("albums")),
     T("arranger", "u", _("arranger"), _("arrangers"), _("arrangement")),
     T("artist", "us", _("artist"), _("artists")),
     T("author", "u", _("author"), _("authors")),
+    T("comment", "u", _("comment")),
     T("composer", "us", _("composer"), _("composers"), _("composition")),
     # Translators: conducting as in conducting a musical performance
     T("conductor", "u", _("conductor"), _("conductors"), _("conducting")),
@@ -83,7 +93,7 @@ _TAGS = dict((t.name, t) for t in [
     T("date", "u", _("date")),
     T("description", "u", _("description")),
     T("genre", "u", _("genre"), _("genres")),
-    T("performer", "uisr", _("performer"), _("performers")),
+    T("performer", "uisr", _("performer"), _("performers"), _("performance")),
     T("grouping", "u", _("grouping")),
     T("language", "ui", _("language")),
     T("license", "u", _("license")),
@@ -157,12 +167,14 @@ _TAGS = dict((t.name, t) for t in [
     T("year", "in", _("year")),
     T("originalyear", "in", _("original release year")),
     T("bookmark", "i", _("bookmark")),
+    T("bitdepth", "n", _("bitdepth")),
     T("bitrate", "in", _("bitrate")),
     T("filesize", "n", _("file size")),
     T("format", "i", _("file format")),
     T("codec", "i", _("codec")),
     T("encoding", "i", _("encoding")),
     T("playlists", "i", _("playlists")),
+    T("samplerate", "n", _("sample rate")),
     T("channels", "n", _("channel count")),
 ])
 
@@ -171,7 +183,7 @@ def _get_sort_map(tags):
     """See TAG_TO_SORT"""
 
     tts = {}
-    for name, tag in iteritems(tags):
+    for name, tag in tags.items():
         if tag.has_sort:
             if tag.user:
                 tts[name] = "%ssort" % name
@@ -182,7 +194,7 @@ def _get_sort_map(tags):
 
 def _get_standard_tags(tags, machine=False):
     stags = []
-    for name, tag in iteritems(tags):
+    for name, tag in tags.items():
         if tag.user and tag.machine == machine:
             stags.append(name)
             if tag.has_sort:
@@ -203,7 +215,7 @@ USER_TAGS = _get_standard_tags(_TAGS, machine=False)
 e.g. album
 """
 
-TAG_ROLES = dict([(n, t.role) for (n, t) in iteritems(_TAGS) if t.role])
+TAG_ROLES = _get_role_map(_TAGS)
 """A mapping from tags to their translated role description.
 e.g. conductor -> conducting
 """

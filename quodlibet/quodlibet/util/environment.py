@@ -1,9 +1,9 @@
-# -*- coding: utf-8 -*-
 # Copyright 2015 Christoph Reiter
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License version 2 as
-# published by the Free Software Foundation
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
 
 """Varisour function for figuring out which platform wa are running on
 and under which environment.
@@ -12,6 +12,10 @@ and under which environment.
 import os
 import sys
 import ctypes
+import configparser
+import fnmatch
+
+from gi.repository import GLib, Gio
 
 
 def _dbus_name_owned(name):
@@ -20,16 +24,30 @@ def _dbus_name_owned(name):
     if not is_linux():
         return False
 
-    try:
-        import dbus
-    except ImportError:
+    return dbus_name_owned(name)
+
+
+def is_flatpak():
+    """If we are running in a flatpak"""
+
+    return is_linux() and os.path.exists("/.flatpak-info")
+
+
+def matches_flatpak_runtime(pattern: str) -> bool:
+    """Pass a fnmatch pattern for matching the flatpak runtime ID"""
+
+    if not is_linux():
         return False
 
+    config = configparser.ConfigParser()
     try:
-        bus = dbus.Bus(dbus.Bus.TYPE_SESSION)
-        return bus.name_has_owner(name)
-    except dbus.DBusException:
+        with open("/.flatpak-info", "r", encoding="utf-8") as f:
+            config.read_file(f)
+        runtime = config.get("Application", "runtime")
+    except (OSError, configparser.Error):
         return False
+
+    return fnmatch.fnmatchcase(runtime, pattern)
 
 
 def is_plasma():
@@ -82,19 +100,17 @@ def is_osx():
     return sys.platform == "darwin"
 
 
-def is_py2exe():
-    """If we are running under py2exe"""
+def dbus_name_owned(name):
+    """Returns True if the dbus name has an owner"""
 
-    return is_windows() and hasattr(sys, "frozen")
+    BUS_DAEMON_NAME = 'org.freedesktop.DBus'
+    BUS_DAEMON_PATH = '/org/freedesktop/DBus'
+    BUS_DAEMON_IFACE = 'org.freedesktop.DBus'
 
-
-def is_py2exe_console():
-    """If we are running under py2exe in console mode"""
-
-    return is_py2exe() and sys.frozen == "console_exe"
-
-
-def is_py2exe_window():
-    """If we are running under py2exe in window mode"""
-
-    return is_py2exe() and not is_py2exe_console()
+    try:
+        bus = Gio.DBusProxy.new_for_bus_sync(
+            Gio.BusType.SESSION, Gio.DBusProxyFlags.NONE, None,
+            BUS_DAEMON_NAME, BUS_DAEMON_PATH, BUS_DAEMON_IFACE, None)
+        return bus.NameHasOwner('(s)', name)
+    except GLib.Error:
+        return False

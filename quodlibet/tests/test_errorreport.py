@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Copyright 2016 Christoph Reiter
 #
 # This program is free software; you can redistribute it and/or modify
@@ -14,12 +13,10 @@ from gi.repository import Gtk
 
 from quodlibet.errorreport import faulthandling, enable_errorhook, errorhook
 from quodlibet.errorreport.faulthandling import FaultHandlerCrash
-from quodlibet.errorreport.github import get_github_issue_url
 from quodlibet.errorreport.logdump import dump_to_disk
 from quodlibet.errorreport.ui import ErrorDialog, SubmitErrorDialog
 from quodlibet.errorreport.main import get_sentry
 from quodlibet.errorreport.sentrywrapper import SentryError, CapturedException
-from quodlibet.compat import text_type
 
 from . import TestCase, mkdtemp
 from .helper import temp_filename
@@ -58,18 +55,6 @@ class Tfaulthandling(TestCase):
         assert key1 == key2 != key3
 
 
-class Tgithub(TestCase):
-
-    def test_main(self):
-        try:
-            raise Exception("foo")
-        except Exception:
-            url = get_github_issue_url(sys.exc_info())
-
-        assert url
-        assert url.startswith("https://")
-
-
 class Tlogdump(TestCase):
 
     def test_main(self):
@@ -91,8 +76,8 @@ class Terrorui(TestCase):
 
     def test_main(self):
         w = Gtk.Window()
-        ErrorDialog(w, u"foo", True).destroy()
-        ErrorDialog(w, u"foo", False).destroy()
+        ErrorDialog(w, u"foo").destroy()
+        ErrorDialog(w, u"foo").destroy()
         SubmitErrorDialog(w, u"foo").destroy()
 
 
@@ -122,7 +107,7 @@ class Tsentrywrapper(TestCase):
             return
 
         assert isinstance(err, CapturedException)
-        assert isinstance(err.get_report(), text_type)
+        assert isinstance(err.get_report(), str)
 
         err.set_comment(u"foo")
         err.set_comment(u"bar")

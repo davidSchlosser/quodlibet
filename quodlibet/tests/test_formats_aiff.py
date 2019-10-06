@@ -1,9 +1,9 @@
-# -*- coding: utf-8 -*-
 # Copyright 2016 Christoph Reiter
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License version 2 as
-# published by the Free Software Foundation
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
 
 from tests import TestCase, get_data_path
 from quodlibet.formats.aiff import AIFFFile
@@ -30,3 +30,6 @@ class TAIFFFile(TestCase):
 
     def test_channels(self):
         assert self.song("~#channels") == 1
+
+    def test_samplerate(self):
+        assert self.song("~#samplerate") == 8000

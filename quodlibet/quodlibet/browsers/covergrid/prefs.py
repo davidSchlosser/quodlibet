@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Copyright 2004-2007 Joe Wreschnig, Michael Urman, Iñigo Serna
 #           2009-2010 Steven Robertson
 #      2012,2013,2016 Nick Boultbee
@@ -6,8 +5,9 @@
 #                2016 Mice Pápai
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License version 2 as
-# published by the Free Software Foundation
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
 
 from gi.repository import Gtk
 
@@ -51,7 +51,7 @@ class Preferences(qltk.UniqueWindow, EditDisplayPatternMixin):
             return
         super(Preferences, self).__init__()
         self.set_border_width(12)
-        self.set_title(_("Cover Grid Preferences") + " - Quod Libet")
+        self.set_title(_("Cover Grid Preferences"))
         self.set_default_size(420, 380)
         self.set_transient_for(qltk.get_top_parent(browser))
         # Do this config-driven setup at instance-time
@@ -69,17 +69,21 @@ class Preferences(qltk.UniqueWindow, EditDisplayPatternMixin):
 
         cb2 = ConfigCheckButton(
             _("Show \"All Albums\" Item"), "browsers", "covergrid_all")
-        cb2.set_active(config.getboolean("browsers", "covergrid_all", False))
-        cb2.connect('toggled',
-                   lambda s: browser.view.get_model().refilter())
+        cb2.set_active(config.getboolean("browsers", "covergrid_all", True))
+
+        def refilter(s):
+            mod = browser.view.get_model()
+            if mod:
+                mod.refilter()
+        cb2.connect('toggled', refilter)
         vbox.pack_start(cb2, False, True, 0)
 
         cb3 = ConfigCheckButton(
-            _("Vertical Split"), "browsers", "covergrid_vertical")
+            _("Wide Mode"), "browsers", "covergrid_wide")
         cb3.set_active(config.getboolean("browsers",
-            "covergrid_vertical", True))
+            "covergrid_wide", False))
         cb3.connect('toggled',
-                   lambda s: browser.toggle_vert())
+                   lambda s: browser.toggle_wide())
         vbox.pack_start(cb3, False, True, 0)
 
         # Redraws the covers only when the user releases the slider

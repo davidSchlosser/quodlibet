@@ -1,7 +1,7 @@
-# -*- coding: utf-8 -*-
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License version 2 as
-# published by the Free Software Foundation
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
 
 import os
 import sys
@@ -23,9 +23,8 @@ except ImportError:
     pass
 
 from quodlibet.player import PlayerError
-from quodlibet.util import sanitize_tags, print_w
+from quodlibet.util import sanitize_tags, is_flatpak, matches_flatpak_runtime
 from quodlibet.formats import MusicFile
-from quodlibet.compat import long, text_type
 from quodlibet import config
 
 
@@ -105,26 +104,23 @@ class TGstreamerTagList(TestCase):
 
         l["foo"] = u"äöü"
         parsed = parse_gstreamer_taglist(l)
-        self.assertTrue(isinstance(parsed["foo"], text_type))
+        self.assertTrue(isinstance(parsed["foo"], str))
         self.assertTrue(u"äöü" in parsed["foo"].split("\n"))
 
         l["foo"] = u"äöü".encode("utf-8")
         parsed = parse_gstreamer_taglist(l)
-        self.assertTrue(isinstance(parsed["foo"], text_type))
+        self.assertTrue(isinstance(parsed["foo"], str))
         self.assertTrue(u"äöü" in parsed["foo"].split("\n"))
 
         l["bar"] = 1.2
         self.failUnlessEqual(parse_gstreamer_taglist(l)["bar"], 1.2)
-
-        l["bar"] = long(9)
-        self.failUnlessEqual(parse_gstreamer_taglist(l)["bar"], 9)
 
         l["bar"] = 9
         self.failUnlessEqual(parse_gstreamer_taglist(l)["bar"], 9)
 
         l["bar"] = Gst.TagList() # some random gst instance
         self.failUnless(
-            isinstance(parse_gstreamer_taglist(l)["bar"], text_type))
+            isinstance(parse_gstreamer_taglist(l)["bar"], str))
         self.failUnless("GstTagList" in parse_gstreamer_taglist(l)["bar"])
 
     def test_sanitize(self):
@@ -201,6 +197,8 @@ class TGstreamerTagList(TestCase):
 
 
 @skipUnless(Gst, "GStreamer missing")
+@skipUnless(sys.platform == "darwin" or os.name == "nt" or is_flatpak(),
+            "no control over gst")
 class TGStreamerCodecs(TestCase):
 
     def setUp(self):
@@ -217,19 +215,15 @@ class TGStreamerCodecs(TestCase):
             "uridecodebin uri=%s ! fakesink" % song("~uri"))
         bus = pipeline.get_bus()
         pipeline.set_state(Gst.State.PLAYING)
+        error = None
         try:
             while 1:
-                message = bus.timed_pop(Gst.SECOND * 10)
+                message = bus.timed_pop(Gst.SECOND * 40)
                 if not message or message.type == Gst.MessageType.ERROR:
                     if message:
-                        debug = message.parse_error()[0].message
+                        error = message.parse_error()[0].message
                     else:
-                        debug = "timed out"
-                    # only print a warning for platforms where we control
-                    # the shipped dependencies.
-                    if sys.platform == "darwin" or os.name == "nt":
-                        print_w("GStreamer: Decoding %r failed (%s)" %
-                                (song("~format"), debug))
+                        error = "timed out"
                     break
                 if message.type == Gst.MessageType.EOS:
                     break
@@ -237,6 +231,7 @@ class TGStreamerCodecs(TestCase):
             pipeline.set_state(Gst.State.NULL)
 
         Gst.debug_set_default_threshold(old_threshold)
+        return error
 
     def test_decode_all(self):
         """Decode all kinds of formats using Gstreamer, to check if
@@ -253,16 +248,27 @@ class TGStreamerCodecs(TestCase):
             "silence-44-s.mpc",
             "silence-44-s.sv8.mpc",
             "silence-44-s.tta",
-            "test.mid",
+            # "test.mid",
             "test.spc",
             "test.vgm",
             "test.wma",
-            "silence-44-s.spx",
             "empty.xm",
+            "h264_aac.mp4",
+            "h265_aac.mp4"
         ]
 
+        if not matches_flatpak_runtime("*org.gnome.*/3.32"):
+            # https://gitlab.com/freedesktop-sdk/freedesktop-sdk/issues/809
+            files.append("silence-44-s.spx")
+
+        errors = []
         for file_ in files:
             path = get_data_path(file_)
             song = MusicFile(path)
             if song is not None:
-                self._check(song)
+                error = self._check(song)
+                if error:
+                    errors.append((song("~format"), error))
+
+        if errors:
+            raise Exception("Decoding failed %r" % errors)

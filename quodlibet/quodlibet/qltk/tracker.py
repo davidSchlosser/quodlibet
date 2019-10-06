@@ -1,10 +1,10 @@
-# -*- coding: utf-8 -*-
 # Copyright 2004-2005 Joe Wreschnig, Michael Urman, Iñigo Serna
 #           2013 Christoph Reiter
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License version 2 as
-# published by the Free Software Foundation
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
 
 import os
 import time
@@ -16,7 +16,7 @@ from quodlibet import config
 
 class TimeTracker(GObject.GObject):
     """Emits tick every second (with up to one second jitter) as long
-    as the player is activly playing.
+    as the player is actively playing.
 
     Uses timeout_add_seconds, so multiple instances of this should
     sync and not produce more wakeups.

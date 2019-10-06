@@ -1,10 +1,10 @@
-# -*- coding: utf-8 -*-
 # Copyright 2004-2005 Joe Wreschnig, Michael Urman
 #           2009-2014 Christoph Reiter
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License version 2 as
-# published by the Free Software Foundation
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
 
 import sys
 import base64
@@ -45,6 +45,10 @@ class MutagenVCFile(AudioFile):
             pass
         try:
             self["~#channels"] = audio.info.channels
+        except AttributeError:
+            pass
+        try:
+            self["~#samplerate"] = audio.info.sample_rate
         except AttributeError:
             pass
         if audio.tags and audio.tags.vendor:
@@ -91,7 +95,8 @@ class MutagenVCFile(AudioFile):
         email = config.get("editing", "save_email").strip()
         maps = {"rating": float, "playcount": int}
         for keyed_key, func in maps.items():
-            for subkey in ["", ":" + const.EMAIL, ":" + email]:
+            emails = [s.lower() for s in ["", ":" + const.EMAIL, ":" + email]]
+            for subkey in emails:
                 key = keyed_key + subkey
                 if key in self:
                     try:
@@ -368,6 +373,10 @@ class OggOpusFile(MutagenVCFile):
     mimes = ["audio/ogg; codecs=opus"]
     MutagenType = OggOpus
 
+    def __init__(self, *args, **kwargs):
+        super(OggOpusFile, self).__init__(*args, **kwargs)
+        self["~#samplerate"] = 48000
+
 
 class FLACFile(MutagenVCFile):
     format = "FLAC"
@@ -381,6 +390,7 @@ class FLACFile(MutagenVCFile):
         super(FLACFile, self).__init__(filename, audio)
         if audio.pictures:
             self.has_images = True
+        self["~#bitdepth"] = audio.info.bits_per_sample
 
     def get_images(self):
         images = super(FLACFile, self).get_images()

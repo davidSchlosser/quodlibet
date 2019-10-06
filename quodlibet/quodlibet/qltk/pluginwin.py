@@ -1,10 +1,10 @@
-# -*- coding: utf-8 -*-
 # Copyright 2004-2005 Joe Wreschnig, Michael Urman, Iñigo Serna
 #           2016-2017 Nick Boultbee
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License version 2 as
-# published by the Free Software Foundation
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
 
 from gi.repository import Gtk, Pango, GObject
 
@@ -379,18 +379,19 @@ class PluginWindow(UniqueWindow, PersistentWindowMixin):
 
         enabled_combo = PluginEnabledFilterCombo()
         enabled_combo.connect("changed", lambda s: filter_model.refilter())
-        enabled_combo.set_tooltip_text("Filter by plugin state / tag")
+        enabled_combo.set_tooltip_text(_("Filter by plugin state / tag"))
         fb.pack_start(enabled_combo, True, True, 0)
         self._enabled_combo = enabled_combo
 
         type_combo = PluginTypeFilterCombo()
         type_combo.connect("changed", lambda s: filter_model.refilter())
-        type_combo.set_tooltip_text("Filter by plugin type")
+        type_combo.set_tooltip_text(_("Filter by plugin type"))
         fb.pack_start(type_combo, True, True, 0)
         self._type_combo = type_combo
 
         filter_entry = UndoSearchEntry()
-        filter_entry.set_tooltip_text("Filter by plugin name or description")
+        filter_entry.set_tooltip_text(
+            _("Filter by plugin name or description"))
         filter_entry.connect("changed", lambda s: filter_model.refilter())
         self._filter_entry = filter_entry
 
@@ -482,9 +483,12 @@ class PluginWindow(UniqueWindow, PersistentWindowMixin):
                     flag == EnabledType.DIS and enabled):
                 return False
 
-        filter_ = entry.get_text().lower()
-        return (not filter_ or filter_ in plugin.name.lower()
-                or filter_ in (plugin.description or "").lower())
+        def matches(text, filter_):
+            return all(p in text.lower() for p in filter_.lower().split())
+
+        filter_ = entry.get_text()
+        return (matches(plugin.name, filter_) or
+                matches((plugin.description or ""), filter_))
 
     def __destroy(self, *args):
         config.save()

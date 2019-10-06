@@ -1,9 +1,9 @@
-# -*- coding: utf-8 -*-
 # Copyright 2014 Christoph Reiter
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License version 2 as
-# published by the Free Software Foundation
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
 
 from contextlib import contextmanager
 
@@ -176,7 +176,7 @@ class ResultView(AllTreeView):
             render.set_property('ellipsize', Pango.EllipsizeMode.END)
             column = Gtk.TreeViewColumn(util.tag(tag), render)
 
-            def cell_data(column, cell, model, iter_, data, tag=tag):
+            def cell_data2(column, cell, model, iter_, data, tag=tag):
                 entry = model.get_value(iter_)
                 release = entry.release
                 if not release:
@@ -186,7 +186,7 @@ class ResultView(AllTreeView):
                     value = ", ".join(value.split("\n"))
                     cell.set_property("text", value)
 
-            column.set_cell_data_func(render, cell_data)
+            column.set_cell_data_func(render, cell_data2)
             self.append_column(column)
             if tag == "tracknumber":
                 self._track_column = column

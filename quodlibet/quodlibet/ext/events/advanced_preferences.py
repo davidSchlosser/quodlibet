@@ -1,10 +1,11 @@
-# -*- coding: utf-8 -*-
-# Copyright 2015 Christoph Reiter
-#        2016-17 Nick Boultbee
+# Copyright 2015    Christoph Reiter
+#           2016-17 Nick Boultbee
+#           2019    Peter Strulo
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License version 2 as
-# published by the Free Software Foundation
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
 
 from gi.repository import Gtk
 
@@ -13,14 +14,12 @@ from quodlibet import config
 from quodlibet.qltk.entry import UndoEntry
 from quodlibet.qltk import Icons
 from quodlibet.util.string import decode
-from quodlibet.util import gdecode
 from quodlibet.plugins.events import EventPlugin
-from quodlibet.compat import text_type
 
 
 def _config(section, option, label, tooltip=None, getter=None):
     def on_changed(entry, *args):
-        config.settext(section, option, gdecode(entry.get_text()))
+        config.settext(section, option, entry.get_text())
 
     entry = UndoEntry()
     if tooltip:
@@ -51,7 +50,7 @@ def text_config(section, option, label, tooltip=None):
 def boolean_config(section, option, label, tooltip):
 
     def getter(section, option):
-        return text_type(config.getboolean(section, option))
+        return str(config.getboolean(section, option))
 
     return _config(section, option, label, tooltip, getter)
 
@@ -59,7 +58,7 @@ def boolean_config(section, option, label, tooltip):
 def int_config(section, option, label, tooltip):
 
     def getter(section, option):
-        return text_type(config.getint(section, option))
+        return str(config.getint(section, option))
 
     return _config(section, option, label, tooltip, getter)
 
@@ -145,6 +144,32 @@ class AdvancedPreferences(EventPlugin):
                 "Main window title:",
                 ("A (tied) tag for the main window title, e.g. ~title~~people "
                  "(restart required)")))
+
+        rows.append(
+            text_config(
+                "settings", "datecolumn_timestamp_format",
+                "DateColumn timestamp format",
+                "A timestamp format, e.g. %Y%m%d %X "))
+
+        rows.append(
+            text_config(
+                "settings", "scrollbar_always_visible",
+                "Scrollbars always visible:",
+                ("Toggles whether the scrollbars on the bottom and side of "
+                 "the window always are visible or get hidden when not in use "
+                 "(restart required)")))
+
+        rows.append(
+            boolean_config(
+                "settings", "pangocairo_force_fontconfig",
+                "Force Use Fontconfig Backend:",
+                "It's not the default on win/macOS (restart required)"))
+
+        rows.append(
+            text_config(
+                "browsers", "ignored_characters",
+                "Ignored characters: ",
+                "Characters to ignore in queries"))
 
         for (row, (label, entry, button)) in enumerate(rows):
             label.set_alignment(1.0, 0.5)

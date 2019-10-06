@@ -1,18 +1,17 @@
-# -*- coding: utf-8 -*-
 # Copyright 2007-2008 Joe Wreschnig
 #           2009,2010 Steven Robertson
 #           2009-2013 Christoph Reiter
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License version 2 as
-# published by the Free Software Foundation
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
 
 from gi.repository import GObject
 
 from quodlibet.formats import AudioFile
 from quodlibet.util import print_d
 from quodlibet import config
-from quodlibet.compat import listfilter
 
 
 class Equalizer(object):
@@ -60,7 +59,6 @@ class BasePlayer(GObject.GObject, Equalizer):
     name = ""
     version_info = ""
 
-    paused = None
     song = None
     info = None
     volume = None
@@ -125,7 +123,7 @@ class BasePlayer(GObject.GObject, Equalizer):
         """
 
         if self.song and config.getboolean("player", "replaygain"):
-            profiles = listfilter(None, self.replaygain_profiles)[0]
+            profiles = list(filter(None, self.replaygain_profiles))[0]
             fb_gain = config.getfloat("player", "fallback_gain")
             pa_gain = config.getfloat("player", "pre_amp_gain")
             scale = self.song.replay_gain(profiles, pa_gain, fb_gain)
@@ -153,11 +151,12 @@ class BasePlayer(GObject.GObject, Equalizer):
 
     @property
     def volume(self):
-        return self.props.volume
+        """Use a cubic scale for the externally exposed volume"""
+        return self.props.volume ** (1.0 / 3.0)
 
     @volume.setter
     def volume(self, v):
-        self.props.volume = min(1.0, max(0.0, v))
+        self.props.volume = min(1.0, max(0.0, v ** 3.0))
 
     @property
     def mute(self):
@@ -166,6 +165,10 @@ class BasePlayer(GObject.GObject, Equalizer):
     @mute.setter
     def mute(self, v):
         self.props.mute = v
+
+    @property
+    def paused(self):
+        raise NotImplementedError
 
     @property
     def seekable(self):
@@ -208,6 +211,13 @@ class BasePlayer(GObject.GObject, Equalizer):
 
         raise NotImplementedError
 
+    def sync(self, timeout):
+        """Tries to finish any pending operations. Mainly for testing.
+        timeout in seconds.
+        """
+
+        pass
+
     def get_position(self):
         """The current position in milliseconds"""
 
@@ -228,7 +238,27 @@ class BasePlayer(GObject.GObject, Equalizer):
         self.paused = True
         self.seek(0)
 
-    def reset(self):
+    def play(self):
+        """If a song is active then unpause else reset the source and start
+        playing.
+        """
+
+        if self.song is None:
+            self._reset()
+        else:
+            self.paused = False
+
+    def playpause(self):
+        """If a song is active then toogle the pause mode else reset the
+        source and start playing.
+        """
+
+        if self.song is None:
+            self._reset()
+        else:
+            self.paused ^= True
+
+    def _reset(self):
         """Reset the source and start playing if possible"""
 
         self._source.reset()
@@ -285,6 +315,6 @@ class BasePlayer(GObject.GObject, Equalizer):
         return self.song is not None
 
     def can_play_uri(self, uri):
-        """Whether the player supports playing te given URI scheme"""
+        """Whether the player supports playing the given URI scheme"""
 
         raise NotImplementedError

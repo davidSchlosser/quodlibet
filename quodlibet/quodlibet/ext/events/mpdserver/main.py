@@ -1,9 +1,9 @@
-# -*- coding: utf-8 -*-
 # Copyright 2014 Christoph Reiter <reiter.christoph@gmail.com>
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of version 2 of the GNU General Public License as
-# published by the Free Software Foundation.
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
 
 import re
 import shlex
@@ -12,7 +12,6 @@ from senf import bytes2fsn, fsn2bytes
 
 from quodlibet import const
 from quodlibet.util import print_d, print_w
-from quodlibet.compat import text_type, iteritems
 from .tcpserver import BaseTCPServer, BaseTCPConnection
 
 
@@ -201,7 +200,7 @@ class MPDService(object):
 
     def flush_idle(self):
         flushed = []
-        for conn, subs in iteritems(self._idle_subscriptions):
+        for conn, subs in self._idle_subscriptions.items():
             # figure out which subsystems to report for each connection
             queued = self._idle_queue[conn]
             if subs:
@@ -226,15 +225,12 @@ class MPDService(object):
         self._idle_subscriptions.pop(connection, None)
 
     def emit_changed(self, subsystem):
-        for conn, subs in iteritems(self._idle_queue):
+        for conn, subs in self._idle_queue.items():
             subs.add(subsystem)
         self.flush_idle()
 
     def play(self):
-        if not self._app.player.song:
-            self._app.player.reset()
-        else:
-            self._app.player.paused = False
+        self._app.player.playpause()
 
     def playid(self, songid):
         self.play()
@@ -274,7 +270,7 @@ class MPDService(object):
     def setvol(self, value):
         """value: 0..100"""
 
-        self._app.player.volume = (value / 100.0) ** 3.0
+        self._app.player.volume = value / 100.0
 
     def repeat(self, value):
         self._options.repeat = value
@@ -312,7 +308,7 @@ class MPDService(object):
             state = "stop"
 
         status = [
-            ("volume", int((app.player.volume ** (1.0 / 3.0)) * 100)),
+            ("volume", int(app.player.volume * 100)),
             ("repeat", int(self._options.repeat)),
             ("random", int(self._options.shuffle)),
             ("single", int(self._options.single)),
@@ -324,6 +320,10 @@ class MPDService(object):
         ]
 
         if info:
+            status.append(("audio", "%d:%d:%d" % (
+                info("~#samplerate") or 0,
+                info("~#bitdepth") or 0,
+                info("~#channels") or 0)))
             total_time = int(info("~#length"))
             elapsed_time = int(app.player.get_position() / 1000)
             elapsed_exact = "%1.3f" % (app.player.get_position() / 1000.0)
@@ -415,7 +415,7 @@ class MPDConnection(BaseTCPConnection):
         self.service = service
         service.add_connection(self)
 
-        str_version = u".".join(map(text_type, service.version))
+        str_version = u".".join(map(str, service.version))
         self._buf = bytearray((u"OK MPD %s\n" % str_version).encode("utf-8"))
         self._read_buf = bytearray()
 
@@ -501,7 +501,7 @@ class MPDConnection(BaseTCPConnection):
     def write_line(self, line):
         """Writes a line to the client"""
 
-        assert isinstance(line, text_type)
+        assert isinstance(line, str)
         self.log(u"<- " + repr(line))
 
         self._buf.extend(line.encode("utf-8", errors="replace") + b"\n")
@@ -831,7 +831,7 @@ def _cmd_outputs(conn, service, args):
 @MPDConnection.Command("commands", permission=Permissions.PERMISSION_NONE)
 def _cmd_commands(conn, service, args):
     for name in conn.list_commands():
-        conn.write_line(u"command: " + text_type(name))
+        conn.write_line(u"command: " + str(name))
 
 
 @MPDConnection.Command("tagtypes")

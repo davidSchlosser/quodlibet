@@ -1,9 +1,9 @@
-# -*- coding: utf-8 -*-
 # Copyright 2011,2013,2016 Christoph Reiter
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License version 2 as
-# published by the Free Software Foundation
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
 
 from __future__ import absolute_import
 
@@ -15,12 +15,10 @@ import re
 import logging
 import errno
 
-from senf import print_, path2fsn, fsn2text, environ, fsnative
+from senf import print_, path2fsn, fsn2text, fsnative, \
+    supports_ansi_escape_codes
 
 from quodlibet import const
-from quodlibet.compat import PY2, text_type
-from .environment import is_py2exe_window, is_windows
-from .string import decode
 from . import logging as ql_logging
 
 
@@ -85,8 +83,8 @@ class Colorise(object):
         return cls.__reset(Color.GRAY + text)
 
 
-_ANSI_ESC_RE = re.compile(u"(\x1b\[\d\d?m)")
-_ANSI_ESC_RE_B = re.compile(b"(\x1b\[\d\d?m)")
+_ANSI_ESC_RE = re.compile(u"(\x1b\\[\\d\\d?m)")
+_ANSI_ESC_RE_B = re.compile(b"(\x1b\\[\\d\\d?m)")
 
 
 def strip_color(text):
@@ -141,6 +139,8 @@ def frame_info(level=0):
     if not info:
         info = frame.f_globals.get("__name__", "")
 
+    info = str(info)
+
     # append the function/method name
     if info:
         info += "." + co_name
@@ -152,16 +152,7 @@ def _should_write_to_file(file_):
     """In Windows UI mode we don't have a working stdout/stderr.
     With Python 2 sys.stdout.fileno() returns a negative fd, with Python 3
     sys.stdout is None.
-
-    When using py2exe we get a fd for a log file and have to look at
-    __stdout__ instead.
     """
-
-    if is_py2exe_window():
-        if file_ is sys.stdout:
-            file_ = sys.__stdout__
-        elif file_ is sys.stderr:
-            file_ = sys.__stderr__
 
     if file_ is None:
         return False
@@ -172,24 +163,19 @@ def _should_write_to_file(file_):
         return True
 
 
-def _supports_ansi_escapes(file):
-    """If one should pass ansi escape sequences to the file"""
-
-    if file.isatty():
-        return True
-
-    if is_windows():
-        # mintty
-        return environ.get("TERM", "") == "xterm"
-
-    return False
+def _supports_ansi_escape_codes(file_):
+    assert file_ is not None
+    try:
+        return supports_ansi_escape_codes(file_.fileno())
+    except (IOError, AttributeError):
+        return False
 
 
 def _print_message(string, custom_context, debug_only, prefix,
                    color, logging_category, start_time=time.time()):
 
-    if not isinstance(string, (text_type, fsnative)):
-        string = text_type(string)
+    if not isinstance(string, (str, fsnative)):
+        string = str(string)
 
     context = frame_info(2)
 
@@ -216,7 +202,7 @@ def _print_message(string, custom_context, debug_only, prefix,
     if not debug_only or const.DEBUG:
         file_ = sys.stderr
         if _should_write_to_file(file_):
-            if not _supports_ansi_escapes(file_):
+            if not _supports_ansi_escape_codes(file_):
                 string = strip_color(string)
             try:
                 print_(string, file=file_, flush=True)
@@ -234,14 +220,21 @@ def _print_message(string, custom_context, debug_only, prefix,
 
 
 def format_exception(etype, value, tb, limit=None):
-    """Returns a list of text_type"""
+    """Returns a list of str"""
 
     result_lines = traceback.format_exception(etype, value, tb, limit)
     return [fsn2text(path2fsn(l)) for l in result_lines]
 
 
+def format_exception_only(etype, value):
+    """Returns a list of str"""
+
+    result_lines = traceback.format_exception_only(etype, value)
+    return [fsn2text(path2fsn(l)) for l in result_lines]
+
+
 def format_exc(limit=None):
-    """Returns text_type"""
+    """Returns str"""
 
     etype, value, tb = sys.exc_info()
     return u''.join(format_exception(etype, value, tb, limit))
@@ -250,20 +243,10 @@ def format_exc(limit=None):
 def extract_tb(*args, **kwargs):
     """Returns a list of tuples containing
 
-    (fsnative, int, text_type, text_type)
+    (fsnative, int, str, str)
     """
 
-    tp = traceback.extract_tb(*args, **kwargs)
-    if not PY2:
-        return tp
-
-    result = []
-    for filename, line_number, function_name, text in tp:
-        filename = path2fsn(filename)
-        function_name = decode(function_name)
-        text = decode(text or u"")
-        result.append((filename, line_number, function_name, text))
-    return result
+    return traceback.extract_tb(*args, **kwargs)
 
 
 def print_exc(exc_info=None, context=None):
@@ -282,10 +265,16 @@ def print_exc(exc_info=None, context=None):
     else:
         # try to get a short error message pointing at the cause of
         # the exception
-        filename, lineno, name, line = extract_tb(tb)[-1]
-        text = u"".join(format_exception(etype, value, tb, 0)[1:])
-        string = u"%s:%s:%s: %s" % (
-            fsn2text(path2fsn(os.path.basename(filename))), lineno, name, text)
+        text = u"".join(format_exception_only(etype, value))
+        try:
+            filename, lineno, name, line = extract_tb(tb)[-1]
+        except IndexError:
+            # no stack
+            string = text
+        else:
+            string = u"%s:%s:%s: %s" % (
+                fsn2text(path2fsn(os.path.basename(filename))),
+                lineno, name, text)
 
     _print_message(string, context, False, "E", "red", "errors")
 

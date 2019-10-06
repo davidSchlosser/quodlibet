@@ -1,9 +1,9 @@
-# -*- coding: utf-8 -*-
 # Copyright 2004-2005 Joe Wreschnig, Michael Urman, Iñigo Serna
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License version 2 as
-# published by the Free Software Foundation
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
 
 from gi.repository import Gtk, GLib, Pango
 
@@ -17,8 +17,7 @@ from quodlibet.qltk import Button, Icons
 from quodlibet.formats import AudioFile
 from quodlibet.pattern import XMLFromPattern, XMLFromMarkupPattern, \
     error as PatternError
-from quodlibet.util import connect_obj, gdecode
-from quodlibet.compat import text_type
+from quodlibet.util import connect_obj
 
 try:
     import gi
@@ -47,7 +46,7 @@ class TextEditBox(Gtk.HBox):
     and an apply button. The 'buffer' attribute is the text buffer, the
     'apply' attribute is the apply button.
 
-    FIXME: Button text should changable (without poking the buttons directly).
+    FIXME: Button text should changeable (without poking the buttons directly).
     """
 
     def __init__(self, default=""):
@@ -73,7 +72,7 @@ class TextEditBox(Gtk.HBox):
     @property
     def text(self):
         start, end = self.buffer.get_bounds()
-        return gdecode(self.buffer.get_text(start, end, True))
+        return self.buffer.get_text(start, end, True)
 
     @text.setter
     def text(self, value):
@@ -85,14 +84,14 @@ def validate_markup_pattern(text, alternative_markup=True, links=False):
 
     Args:
         text (unicode): the pattern
-        alternative_markup (bool): if "[b]" gets mapped to "\<b\>"
+        alternative_markup (bool): if "[b]" gets mapped to "\\<b\\>"
         links (bool): if link tags are allowed (for Gtk.Label only)
 
     Raises:
         ValueError: In case the pattern isn't valid
     """
 
-    assert isinstance(text, text_type)
+    assert isinstance(text, str)
 
     f = AudioFile({"~filename": fsnative(u"dummy")})
 

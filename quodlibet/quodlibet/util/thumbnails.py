@@ -1,16 +1,15 @@
-# -*- coding: utf-8 -*-
 # Copyright 2009-2014 Christoph Reiter
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License version 2 as
-# published by the Free Software Foundation
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
 
 import os
-import tempfile
 import hashlib
 
 from gi.repository import GdkPixbuf, GLib
-from senf import fsn2uri, fsnative
+from senf import fsn2uri, fsnative, gettempdir
 
 import quodlibet
 from quodlibet.util.path import mtime, mkdir, xdg_get_cache_home
@@ -25,7 +24,7 @@ def get_thumbnail_folder():
     """
 
     if os.name == "nt":
-        thumb_folder = os.path.join(quodlibet.get_user_dir(), "thumbnails")
+        thumb_folder = os.path.join(quodlibet.get_cache_dir(), "thumbnails")
     else:
         cache_folder = os.path.join(xdg_get_cache_home(), "thumbnails")
         thumb_folder = os.path.expanduser('~/.thumbnails')
@@ -97,13 +96,16 @@ def get_thumbnail_from_file(fileobj, boundary):
             pass
 
 
-def get_thumbnail(path, boundary):
+def get_thumbnail(path, boundary, ignore_temp=True):
     """Get a thumbnail pixbuf of an image at `path`.
 
     Will create/use a thumbnail in the user's thumbnail directory if possible.
     Follows the Free Desktop specification:
 
     http://specifications.freedesktop.org/thumbnail-spec/
+
+    If ignore_temp then no thumbnail cache will be created for files
+    in the default temporary directory.
 
     Can raise GLib.GError. Thread-safe.
     """
@@ -123,7 +125,7 @@ def get_thumbnail(path, boundary):
 
     # embedded thumbnails come from /tmp/
     # FIXME: move this to another layer
-    if path.startswith(tempfile.gettempdir()):
+    if ignore_temp and path.startswith(gettempdir()):
         return new_from_file_at_size(path, width, height)
 
     thumb_path, thumb_size = get_cache_info(path, boundary)

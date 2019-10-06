@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Copyright (C) 2012-13 Nick Boultbee, Thomas Vogt
 # Copyright (C) 2008 Andreas Bombe
 # Copyright (C) 2005  Michael Urman
@@ -6,8 +5,9 @@
 #                 (C) 2004 Gustavo J. A. M. Carneiro
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of version 2 of the GNU General Public License as
-# published by the Free Software Foundation.
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
 
 from quodlibet.plugins import (PluginConfig, ConfProp, IntConfProp,
     FloatConfProp, ColorConfProp)
@@ -27,6 +27,7 @@ def get_config(prefix):
 
         font = ConfProp(plugin_conf, "font", "Sans 22")
         string = ConfProp(plugin_conf, "string", DEFAULT_PATTERN)
+        pos_x = FloatConfProp(plugin_conf, "pos_x", 0.5)
         pos_y = FloatConfProp(plugin_conf, "pos_y", 0.0)
         corners = IntConfProp(plugin_conf, "corners", 1)
         delay = IntConfProp(plugin_conf, "delay", 2500)

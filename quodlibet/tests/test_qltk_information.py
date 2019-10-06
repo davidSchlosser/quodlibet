@@ -1,7 +1,7 @@
-# -*- coding: utf-8 -*-
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License version 2 as
-# published by the Free Software Foundation
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
 
 from senf import fsnative
 
@@ -10,7 +10,7 @@ from tests import TestCase, init_fake_app, destroy_fake_app
 from quodlibet.formats import AudioFile
 from quodlibet.library import SongLibrary
 from quodlibet.qltk.information import Information, OneArtist, OneAlbum, \
-    ManySongs, OneSong
+    ManySongs, OneSong, TitleLabel, _sort_albums
 import quodlibet.config
 
 
@@ -55,11 +55,47 @@ class TInformation(TestCase):
         self.inf = Information(self.library, [f, f2])
         self.assert_child_is(OneAlbum)
 
+    def test_album_special_chars(self):
+        f = AF({"~filename": fsnative(u"/dev/null"), "album": "woo & hoo"})
+        f2 = AF({"~filename": fsnative(u"/dev/null2"), "album": "woo & hoo"})
+        self.inf = Information(self.library, [f, f2])
+        self.assert_child_is(OneAlbum)
+
     def test_artist(self):
         f = AF({"~filename": fsnative(u"/dev/null"), "artist": "woo"})
         f2 = AF({"~filename": fsnative(u"/dev/null2"), "artist": "woo"})
         self.inf = Information(self.library, [f, f2])
         self.assert_child_is(OneArtist)
 
+    def test_performer_roles(self):
+        f = AF({"~filename": fsnative(u"/dev/null"), "performer:piano": "woo"})
+        self.inf = Information(self.library, [f])
+        self.assert_child_is(OneSong)
+
+    def test_remove_song(self):
+        f = AF({"~filename": fsnative(u"/dev/null"), "artist": "woo"})
+        f2 = AF({"~filename": fsnative(u"/dev/null2"), "artist": "woo"})
+        self.library.add([f, f2])
+        self.inf = Information(self.library, [f, f2])
+        self.library.remove([f])
+
     def assert_child_is(self, cls):
         self.failUnless(isinstance(self.inf.get_child(), cls))
+
+
+class TUtils(TestCase):
+    def test_sort_albums(self):
+        # Make sure we have more than one album, one having a null date
+        f = AF({"~filename": fsnative(u"/1"), "album": "one"})
+        f2 = AF({"~filename": fsnative(u"/2"), "album": "one"})
+        f3 = AF({"~filename": fsnative(u"/3"), "album": "two", "date": "2009"})
+        f4 = AF({"~filename": fsnative(u"/4")})
+        albums, count = _sort_albums([f, f2, f3, f4])
+        self.failUnlessEqual(count, 1)
+        self.failUnlessEqual(len(albums), 2)
+
+
+class TTitleLabel(TestCase):
+    def test_foo(self):
+        label = TitleLabel("foo & bar")
+        self.failUnlessEqual(label.get_text(), "foo & bar")

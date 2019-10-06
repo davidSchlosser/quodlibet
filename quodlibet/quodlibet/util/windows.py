@@ -1,16 +1,15 @@
-# -*- coding: utf-8 -*-
 # Copyright 2013,2016 Christoph Reiter
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License version 2 as
-# published by the Free Software Foundation
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
 
 from __future__ import absolute_import
 
 import os
 import ctypes
 
-from quodlibet.compat import text_type
 
 if os.name == "nt":
     from . import winapi
@@ -38,9 +37,9 @@ def open_folder_and_select_items(folder, items=None):
     if items is None:
         items = []
 
-    assert isinstance(folder, text_type)
+    assert isinstance(folder, str)
     for item in items:
-        assert isinstance(item, text_type)
+        assert isinstance(item, str)
         assert not os.path.split(item)[0]
 
     desktop = winapi.IShellFolder()
@@ -143,8 +142,8 @@ def get_personal_dir(**kwargs):
     return _get_path(CSIDL.PERSONAL, **kwargs)
 
 
-def get_appdate_dir(**kwargs):
-    r"""e.g. 'C:\Users\<user>\AppDate\Roaming'"""
+def get_appdata_dir(**kwargs):
+    r"""e.g. 'C:\Users\<user>\AppData\Roaming'"""
 
     return _get_path(CSIDL.APPDATA, **kwargs)
 
@@ -180,7 +179,7 @@ def get_link_target(path):
     Might raise WindowsError in case something fails.
     """
 
-    assert isinstance(path, text_type)
+    assert isinstance(path, str)
 
     CoInitialize(None)
 

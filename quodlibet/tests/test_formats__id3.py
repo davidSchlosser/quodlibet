@@ -1,17 +1,17 @@
-# -*- coding: utf-8 -*-
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License version 2 as
-# published by the Free Software Foundation
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
 
 from tests import TestCase, get_data_path
 
 import os
+from io import BytesIO
 
 from quodlibet import const
 from quodlibet.formats._image import EmbeddedImage
 from quodlibet.formats.mp3 import MP3File
 from quodlibet.formats.aiff import AIFFFile
-from quodlibet.compat import cBytesIO
 
 import mutagen
 
@@ -82,7 +82,7 @@ class TID3ImagesMixin(object):
         self.assertFalse(song.has_images)
 
     def test_set_image(self):
-        fileobj = cBytesIO(b"foo")
+        fileobj = BytesIO(b"foo")
         image = EmbeddedImage(fileobj, "image/jpeg", 10, 10, 8)
 
         song = self.KIND(self.filename)
@@ -98,7 +98,7 @@ class TID3ImagesMixin(object):
         f = mutagen.File(self.filename)
         f.delete()
         song = self.KIND(self.filename)
-        fileobj = cBytesIO(b"foo")
+        fileobj = BytesIO(b"foo")
         image = EmbeddedImage(fileobj, "image/jpeg", 10, 10, 8)
         song.set_image(image)
 
@@ -144,6 +144,13 @@ class TID3FileMixin(object):
         else:
             self.KIND(self.filename)
 
+    def test_write_empty_replaygain_track_gain(self):
+        f = self.KIND(self.filename)
+        f["replaygain_track_gain"] = ""
+        f.write()
+        f.reload()
+        assert f.replay_gain(["track"]) == 1.0
+
     def test_TXXX_DATE(self):
         # https://github.com/quodlibet/quodlibet/issues/220
         f = mutagen.File(self.filename)
@@ -169,17 +176,20 @@ class TID3FileMixin(object):
                    text=u'lyrics with non-empty lang'))
         f.save()
 
-        f = self.KIND(self.filename)
-        self.failUnlessEqual(f['lyrics'], u'lyrics')
-        f['lyrics'] = u'modified lyrics'
-        f.write()
-
         f = mutagen.File(self.filename)
-        self.failUnlessEqual(f.tags[u'USLT::\x00\x00\x00'], u'modified lyrics')
+        self.failUnlessEqual(f.tags[u'USLT::\x00\x00\x00'], u'lyrics')
         self.failUnlessEqual(f.tags[u'USLT:desc:\x00\x00\x00'],
                              u'lyrics with non-empty desc')
         self.failUnlessEqual(f.tags[u'USLT::xyz'],
                              u'lyrics with non-empty lang')
+
+        f = self.KIND(self.filename)
+        self.failUnlessEqual(sorted(f['lyrics'].split('\n')),
+                             sorted([u'lyrics',
+                                     u'lyrics with non-empty lang',
+                                     u'lyrics with non-empty desc']))
+        f['lyrics'] = u'modified lyrics'
+        f.write()
 
         f = self.KIND(self.filename)
         self.failUnlessEqual(f['lyrics'], u'modified lyrics')
@@ -189,10 +199,6 @@ class TID3FileMixin(object):
         f = mutagen.File(self.filename)
         self.failIf('USLT' in f.tags,
                     'There should be no USLT tag when lyrics were deleted')
-        self.failUnlessEqual(f.tags[u'USLT:desc:\x00\x00\x00'],
-                             u'lyrics with non-empty desc')
-        self.failUnlessEqual(f.tags[u'USLT::xyz'],
-                             u'lyrics with non-empty lang')
 
         f = self.KIND(self.filename)
         self.failIf('lyrics' in f,
@@ -279,22 +285,18 @@ class TID3FileMixin(object):
                 msg="Wrong tags: %s" % tags)
         af.clear()
 
-    def test_tlen(self):
+    def test_ignore_tlen(self):
         f = mutagen.File(self.filename)
-        f.tags.add(mutagen.id3.TLEN(encoding=0, text=['20000']))
+        f.tags.delall("TLEN")
         f.save()
-        self.failUnlessEqual(self.KIND(self.filename)("~#length"), 20)
+        length = self.KIND(self.filename)("~#length")
 
-        # ignore <= 0 [issue 222]
-        f = mutagen.File(self.filename)
-        f.tags.add(mutagen.id3.TLEN(encoding=0, text=['0']))
-        f.save()
-        self.failUnless(self.KIND(self.filename)("~#length") > 0)
-
-        # inval
-        f.tags.add(mutagen.id3.TLEN(encoding=0, text=['x']))
-        f.save()
-        self.failUnless(self.KIND(self.filename)("~#length") > 0)
+        for value in ["20000", "0", "x"]:
+            f = mutagen.File(self.filename)
+            f.tags.add(mutagen.id3.TLEN(encoding=0, text=[value]))
+            f.save()
+            self.assertAlmostEqual(
+                self.KIND(self.filename)("~#length"), length, 2)
 
     def test_load_tcon(self):
         # check if the mutagen preprocessing is used

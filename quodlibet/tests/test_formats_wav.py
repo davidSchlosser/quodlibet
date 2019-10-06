@@ -1,15 +1,14 @@
-# -*- coding: utf-8 -*-
 # Copyright 2015 Christoph Reiter
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License version 2 as
-# published by the Free Software Foundation
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
 
 import os
 
 from tests import TestCase, get_data_path
 from quodlibet.formats.wav import WAVEFile
-from quodlibet.compat import text_type
 
 
 class TWAVEFile(TestCase):
@@ -19,13 +18,19 @@ class TWAVEFile(TestCase):
 
     def test_title_tag(self):
         self.assertEqual(self.song["title"], "test")
-        self.assertTrue(isinstance(self.song["title"], text_type))
+        self.assertTrue(isinstance(self.song["title"], str))
 
     def test_length(self):
         self.failUnlessAlmostEqual(self.song("~#length"), 0.227, 2)
 
     def test_channels(self):
         assert self.song("~#channels") == 1
+
+    def test_samplerate(self):
+        assert self.song("~#samplerate") == 11025
+
+    def test_bitdepth(self):
+        assert self.song("~#bitdepth") == 8
 
     def test_write(self):
         self.song.write()

@@ -1,10 +1,10 @@
-# -*- coding: utf-8 -*-
 # Copyright 2012 Martijn Pieters <mj@zopatista.com>
 # Copyright 2014 Eric Le Lay elelay.fr:dev
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License version 2 as
-# published by the Free Software Foundation
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
 
 """
 osxmmkey - Mac OS X Media Keys support
@@ -74,7 +74,7 @@ class MacKeyEventsTap(threading.Thread):
         GLib.idle_add(idle_call, action)
 
     def _event_tap(self, proxy, type_, event, refcon):
-        # evenTrap disabled by timeout or user input, reenable
+        # evenTrap disabled by timeout or user input, re-enable
         if type_ == Quartz.kCGEventTapDisabledByUserInput or \
                 type_ == Quartz.kCGEventTapDisabledByTimeout:
             assert self._tap is not None
@@ -83,7 +83,7 @@ class MacKeyEventsTap(threading.Thread):
 
         # Convert the Quartz CGEvent into something more useful
         keyEvent = NSEvent.eventWithCGEvent_(event)
-        if keyEvent.subtype() is 8: # subtype 8 is media keys
+        if keyEvent.subtype() == 8: # subtype 8 is media keys
             data = keyEvent.data1()
             keyCode = (data & 0xFFFF0000) >> 16
             keyState = (data & 0xFF00) >> 8

@@ -1,11 +1,11 @@
-# -*- coding: utf-8 -*-
 # Copyright 2004-2006 Joe Wreschnig, Michael Urman, Iñigo Serna
 #           2012 Christoph Reiter
 #           2013 Nick Boultbee
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License version 2 as
-# published by the Free Software Foundation
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
 
 import gi
 try:
@@ -20,7 +20,6 @@ from quodlibet import _
 from quodlibet import app
 from quodlibet.util import is_plasma
 from quodlibet.pattern import Pattern
-from quodlibet.compat import xrange
 from .base import BaseIndicator
 from .util import pconfig
 from .menu import IndicatorMenu
@@ -99,7 +98,7 @@ class AppIndicator(BaseIndicator):
         # If direction here is always UP you're hitting
         # https://bugs.launchpad.net/indicator-application/+bug/1075152
         modifier_swap = pconfig.getboolean("modifier_swap")
-        for step in xrange(steps):
+        for step in range(steps):
             if direction == Gdk.ScrollDirection.UP:
                 if modifier_swap:
                     app.player.previous()

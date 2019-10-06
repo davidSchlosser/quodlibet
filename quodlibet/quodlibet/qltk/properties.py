@@ -1,11 +1,11 @@
-# -*- coding: utf-8 -*-
 # Copyright 2004-2005 Joe Wreschnig, Michael Urman, Iñigo Serna
 #                2012 Nick Boultbee
 #                2014 Christoph Reiter
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License version 2 as
-# published by the Free Software Foundation
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
 
 from gi.repository import Gtk, GObject, Pango
 from senf import fsn2text
@@ -23,8 +23,7 @@ from quodlibet.qltk.window import PersistentWindowMixin
 from quodlibet.qltk.x import ScrolledWindow, ConfigRPaned
 from quodlibet.qltk.models import ObjectStore, ObjectModelSort
 from quodlibet.qltk.msg import CancelRevertSave
-from quodlibet.util import connect_destroy
-from quodlibet.compat import cmp
+from quodlibet.util import connect_destroy, cmp
 
 
 class _ListEntry(object):

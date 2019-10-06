@@ -1,20 +1,22 @@
-# -*- coding: utf-8 -*-
 # Copyright 2011,2013 Christoph Reiter
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License version 2 as
-# published by the Free Software Foundation
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
 
 import json
 import collections
 import threading
 import gzip
 from xml.dom.minidom import parseString
+from io import BytesIO
+from urllib.parse import urlencode
+import queue
 
 from gi.repository import GLib
 
 from quodlibet.util import print_w
-from quodlibet.compat import iteritems, urlencode, queue, cBytesIO
 from quodlibet.util.urllib import urlopen, Request
 from .util import get_api_key, GateKeeper
 
@@ -59,9 +61,9 @@ class AcoustidSubmissionThread(threading.Thread):
             "user": get_api_key(),
         })
 
-        urldata = "&".join([basedata] + map(urlencode, urldata))
-        obj = cBytesIO()
-        gzip.GzipFile(fileobj=obj, mode="wb").write(urldata)
+        urldata = "&".join([basedata] + list(map(urlencode, urldata)))
+        obj = BytesIO()
+        gzip.GzipFile(fileobj=obj, mode="wb").write(urldata.encode())
         urldata = obj.getvalue()
 
         headers = {
@@ -104,6 +106,7 @@ class AcoustidSubmissionThread(threading.Thread):
                 "bitrate": song("~#bitrate"),
                 "fileformat": song("~format"),
                 "mbid": song("musicbrainz_trackid"),
+                "track": song("title"),
                 "artist": song.list("artist"),
                 "album": song("album"),
                 "albumartist": song("albumartist"),
@@ -113,7 +116,7 @@ class AcoustidSubmissionThread(threading.Thread):
             }
 
             tuples = []
-            for key, value in iteritems(track):
+            for key, value in track.items():
                 # this also dismisses 0.. which should be ok here.
                 if not value:
                     continue
@@ -297,8 +300,8 @@ class AcoustidLookupThread(threading.Thread):
         req_data.append("meta=releases+recordings+tracks+sources")
 
         urldata = "&".join(req_data)
-        obj = cBytesIO()
-        gzip.GzipFile(fileobj=obj, mode="wb").write(urldata)
+        obj = BytesIO()
+        gzip.GzipFile(fileobj=obj, mode="wb").write(urldata.encode())
         urldata = obj.getvalue()
 
         headers = {
@@ -316,7 +319,7 @@ class AcoustidLookupThread(threading.Thread):
         else:
             try:
                 data = response.read()
-                data = json.loads(data)
+                data = json.loads(data.decode())
             except ValueError as e:
                 error = str(e)
             else:

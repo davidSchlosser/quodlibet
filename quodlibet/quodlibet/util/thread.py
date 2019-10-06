@@ -1,9 +1,9 @@
-# -*- coding: utf-8 -*-
 # Copyright 2015 Christoph Reiter
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License version 2 as
-# published by the Free Software Foundation
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
 
 """Utils for executing things in a thread controlled from the main loop"""
 
@@ -71,7 +71,7 @@ def _wrap_function(function, cancellable, args, kwargs):
                 return function(*args, **kwargs)
             except:
                 # ThreadPool catches the exception for the async result
-                # which we don't use. Print instead as if it was not catched.
+                # which we don't use. Print instead as if it was not caught.
                 util.print_exc()
                 raise
 

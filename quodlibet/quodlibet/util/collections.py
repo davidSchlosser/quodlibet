@@ -1,16 +1,15 @@
-# -*- coding: utf-8 -*-
 # Copyright 2006 Joe Wreschnig
 #           2013 Christoph Reiter
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License version 2 as
-# published by the Free Software Foundation
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
 
 from __future__ import absolute_import
 
 from collections import MutableSequence, defaultdict
 
-from quodlibet.compat import listkeys
 from .misc import total_ordering
 
 
@@ -58,7 +57,7 @@ class DictMixin(object):
         return iter(self.items())
 
     def clear(self):
-        for key in listkeys(self):
+        for key in list(self.keys()):
             del self[key]
 
     def pop(self, key, *args):
@@ -76,7 +75,7 @@ class DictMixin(object):
 
     def popitem(self):
         try:
-            key = listkeys(self)[0]
+            key = list(self.keys())[0]
             return key, self.pop(key)
         except IndexError:
             raise KeyError("dictionary is empty")

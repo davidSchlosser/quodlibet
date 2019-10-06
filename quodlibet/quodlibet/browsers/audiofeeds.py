@@ -1,15 +1,16 @@
-# -*- coding: utf-8 -*-
 # Copyright 2005 Joe Wreschnig
 #           2017 Nick Boultbee
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License version 2 as
-# published by the Free Software Foundation
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
 
 import os
 import sys
 import threading
 import time
+from urllib.request import build_opener
 
 from gi.repository import Gtk, GLib, Pango, Gdk
 import feedparser
@@ -24,18 +25,14 @@ from quodlibet import util
 from quodlibet import app
 
 from quodlibet.browsers import Browser
-from quodlibet.compat import listfilter, text_type, build_opener, PY2
 from quodlibet.formats import AudioFile
 from quodlibet.formats.remote import RemoteFile
-from quodlibet.qltk.downloader import DownloadWindow
 from quodlibet.qltk.getstring import GetStringDialog
 from quodlibet.qltk.msg import ErrorMessage
-from quodlibet.qltk.songsmenu import SongsMenu
 from quodlibet.qltk.views import AllTreeView
 from quodlibet.qltk import Icons
 from quodlibet.util import connect_obj, print_w
 from quodlibet.qltk.x import ScrolledWindow, Align, Button, MenuItem
-from quodlibet.qltk.chooser import choose_target_file, choose_target_folder
 from quodlibet.util.picklehelper import pickle_load, pickle_dump, PickleError
 
 
@@ -175,11 +172,11 @@ class Feed(list):
                                 "ogg" in enclosure.type or
                                 formats.filter(enclosure.url)):
                             uri = enclosure.url
-                            if not isinstance(uri, text_type):
+                            if not isinstance(uri, str):
                                 uri = uri.decode('utf-8')
                             try:
                                 size = float(enclosure.length)
-                            except AttributeError:
+                            except (AttributeError, ValueError):
                                 size = 0
                             entries.append((uri, entry, size))
                             uris.add(uri)
@@ -226,15 +223,19 @@ class Feed(list):
             result = opener.open(req)
             ct_hdr = result.headers.get('Content-Type', "Unknown type")
             content_type = ct_hdr.split(';')[0]
-            status = result.code if PY2 else result.status
-            print_d("Pre-check: %s returned %s with content type '%s'" %
-                    (self.uri, status, content_type))
-            if content_type not in feedparser.ACCEPT_HEADER:
-                print_w("Unusable content: %s. Perhaps %s is not a feed?" %
-                        (content_type, self.uri))
-                return False
-            # No real need to check HTTP Status - errors are very unlikely
-            # to be a usable content type, and we should always try to parse
+            try:
+                status = result.status
+            except AttributeError:
+                print_w("Missing status code for feed %s" % self.uri)
+            else:
+                print_d("Pre-check: %s returned %s with content type '%s'" %
+                        (self.uri, status, content_type))
+                if content_type not in feedparser.ACCEPT_HEADER:
+                    print_w("Unusable content: %s. Perhaps %s is not a feed?" %
+                            (content_type, self.uri))
+                    return False
+                # No real need to check HTTP Status - errors are very unlikely
+                # to be a usable content type, and we should try to parse
         finally:
             opener.close()
         return True
@@ -250,10 +251,47 @@ class AddFeedDialog(GetStringDialog):
     def run(self, text='', test=False):
         uri = super(AddFeedDialog, self).run(text=text, test=test)
         if uri:
-            if not isinstance(uri, text_type):
+            if not isinstance(uri, str):
                 uri = uri.decode('utf-8')
             return Feed(uri)
         return None
+
+
+def hacky_py2_unpickle_recover(fileobj):
+    """Can raise anything"""
+
+    # We just recover the uri and let it refresh the feed later
+
+    def lookup_func(func, mod, name):
+
+        class Feed(list):
+            pass
+
+        class Bar(dict):
+            pass
+
+        if name == "Feed":
+            return Feed
+        else:
+            return Bar
+
+    with open(FEEDS, "rb") as fileobj:
+        feeds = pickle_load(fileobj, lookup_func)
+
+    uris = []
+    for item in feeds:
+        d = item.__dict__
+        if b"uri" in d:
+            v = d[b"uri"]
+        elif "uri" in d:
+            v = d["uri"]
+        else:
+            continue
+        if isinstance(v, bytes):
+            v = v.decode("utf-8")
+        uris.append(v)
+
+    return [Feed(u) for u in uris]
 
 
 class AudioFeeds(Browser):
@@ -304,17 +342,24 @@ class AudioFeeds(Browser):
     @classmethod
     def init(klass, library):
         uris = set()
+        feeds = []
+
         try:
             with open(FEEDS, "rb") as fileobj:
                 feeds = pickle_load(fileobj)
         except (PickleError, EnvironmentError):
-            pass
-        else:
-            for feed in feeds:
-                if feed.uri in uris:
-                    continue
-                klass.__feeds.append(row=[feed])
-                uris.add(feed.uri)
+            try:
+                with open(FEEDS, "rb") as fileobj:
+                    feeds = hacky_py2_unpickle_recover(fileobj)
+            except Exception:
+                pass
+
+        for feed in feeds:
+            if feed.uri in uris:
+                continue
+            klass.__feeds.append(row=[feed])
+            uris.add(feed.uri)
+
         GLib.idle_add(klass.__do_check)
 
     @classmethod
@@ -339,38 +384,6 @@ class AudioFeeds(Browser):
                 row[0] = feed
         klass.write()
         GLib.timeout_add(60 * 60 * 1000, klass.__do_check)
-
-    def Menu(self, songs, library, items):
-        if len(songs) == 1:
-            item = qltk.MenuItem(_(u"_Download…"), Icons.NETWORK_WORKGROUP)
-            item.connect('activate', self.__download, songs[0]("~uri"))
-            item.set_sensitive(not songs[0].is_file)
-        else:
-            uris = [song("~uri") for song in songs if not song.is_file]
-            item = qltk.MenuItem(_(u"_Download…"), Icons.NETWORK_WORKGROUP)
-            item.connect('activate', self.__download_many, uris)
-            item.set_sensitive(bool(uris))
-
-        items.append([item])
-        menu = SongsMenu(library, songs, items=items)
-        return menu
-
-    def __download_many(self, activator, sources):
-        target = choose_target_folder(self, _("Download Files"), _("_Save"))
-        if target is not None:
-            for i, source in enumerate(sources):
-                base = os.path.basename(source)
-                if not base:
-                    base = ("file%d" % i) + (
-                        os.path.splitext(source)[1] or ".audio")
-                fulltarget = os.path.join(target, base)
-                DownloadWindow.download(source, fulltarget, self)
-
-    def __download(self, activator, source):
-        name = os.path.basename(source)
-        target = choose_target_file(self, _("Download File"), _("_Save"), name)
-        if target is not None:
-            DownloadWindow.download(source, target, self)
 
     def __init__(self, library):
         super(AudioFeeds, self).__init__(spacing=6)
@@ -480,7 +493,7 @@ class AudioFeeds(Browser):
         AudioFeeds.write()
 
     def __refresh(self, feeds):
-        changed = listfilter(Feed.parse, feeds)
+        changed = list(filter(Feed.parse, feeds))
         AudioFeeds.changed(changed)
 
     def __remove_paths(self, model, paths):

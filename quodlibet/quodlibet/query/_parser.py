@@ -1,11 +1,11 @@
-# -*- coding: utf-8 -*-
 # Copyright 2004-2005 Joe Wreschnig, Michael Urman
 #           2016 Ryan Dellenbaugh
 #           2017 Nick Boultbee
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License version 2 as
-# published by the Free Software Foundation
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
 
 import codecs
 import re
@@ -13,7 +13,6 @@ import re
 from . import _match as match
 from ._match import ParseError
 from quodlibet.util import re_escape
-from quodlibet.compat import text_type, PY3
 
 
 # Precompiled regexes
@@ -295,11 +294,8 @@ class QueryParser(object):
 
     def str_to_re(self, string):
         """Convert plain string to escaped regexp that can be compiled"""
-        if isinstance(string, text_type):
+        if isinstance(string, str):
             string = string.encode('utf-8')
-        if PY3:
-            string = codecs.escape_decode(string)[0]
-        else:
-            string = string.decode('string_escape')
+        string = codecs.escape_decode(string)[0]
         string = string.decode('utf-8')
         return "^%s$" % re_escape(string)

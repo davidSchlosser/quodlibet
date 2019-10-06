@@ -1,12 +1,13 @@
-# -*- coding: utf-8 -*-
 # Copyright 2014-2017 Nick Boultbee
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License version 2 as
-# published by the Free Software Foundation
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
 
 from gi.repository import Gtk, Pango, GObject
 
+from quodlibet import app
 from quodlibet import ngettext, _
 from quodlibet import qltk
 from quodlibet.browsers.playlists.util import GetPlaylistName, PLAYLISTS
@@ -19,9 +20,8 @@ class PlaylistMenu(Gtk.Menu):
         'new': (GObject.SignalFlags.RUN_LAST, None, (object,)),
     }
 
-    def __init__(self, songs, playlists, librarian=None):
+    def __init__(self, songs, playlists):
         super(PlaylistMenu, self).__init__()
-        self.librarian = librarian
         i = Gtk.MenuItem(label=_(u"_New Playlist…"), use_underline=True)
         i.connect('activate', self._on_new_playlist_activate, songs)
         self.append(i)
@@ -30,7 +30,7 @@ class PlaylistMenu(Gtk.Menu):
 
         for playlist in playlists:
             name = playlist.name
-            i = Gtk.CheckMenuItem(name)
+            i = Gtk.CheckMenuItem(label=name)
             some, all = playlist.has_songs(songs)
             i.set_active(some)
             i.set_inconsistent(some and not all)
@@ -46,7 +46,7 @@ class PlaylistMenu(Gtk.Menu):
         if title is None:
             return
         playlist = FileBackedPlaylist.new(PLAYLISTS, title,
-                                          library=self.librarian)
+                                          library=app.library)
         playlist.extend(songs)
         self._emit_new(playlist)
 

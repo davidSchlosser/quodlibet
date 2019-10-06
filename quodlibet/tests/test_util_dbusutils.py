@@ -1,13 +1,11 @@
-# -*- coding: utf-8 -*-
 # Copyright 2012 Christoph Reiter <reiter.christoph@gmail.com>
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of version 2 of the GNU General Public License as
-# published by the Free Software Foundation.
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
 
 from tests import TestCase, skipUnless
-
-from quodlibet.compat import text_type
 
 try:
     import dbus
@@ -19,7 +17,7 @@ else:
     from quodlibet.util.dbusutils import dbus_unicode_validate
 
 
-ANN1 = b"""
+ANN1 = """
 <property name="Position" type="s" access="read">
 <annotation name="org.freedesktop.DBus.Property.EmitsChangedSignal" \
 value="false"/>
@@ -27,7 +25,7 @@ value="false"/>
 <property name="MinimumRate" type="s" access="read"/>
 """
 
-ANN2 = b"""
+ANN2 = """
 <annotation name="org.freedesktop.DBus.Property.EmitsChangedSignal" \
 value="false"/>
 <property name="Foobar" type="s" access="read">
@@ -63,13 +61,13 @@ class TDbusUtils(TestCase):
         value = apply_signature(text, "s", utf8_strings=True)
         self.failUnless(isinstance(value, str))
         value = apply_signature(text, "s")
-        self.failUnless(isinstance(value, text_type))
+        self.failUnless(isinstance(value, str))
 
         text = u"öäü"
         value = apply_signature(text, "s", utf8_strings=True)
         self.failUnless(isinstance(value, str))
         value = apply_signature(text, "s")
-        self.failUnless(isinstance(value, text_type))
+        self.failUnless(isinstance(value, str))
 
     def test_list_props(self):
         props = list_spec_properties(ANN1)

@@ -1,11 +1,11 @@
-# -*- coding: utf-8 -*-
 # Copyright 2004-2005 Joe Wreschnig, Michael Urman, Iñigo Serna,
 #           2011-2013,2016 Nick Boultbee
 #           2014 Christoph Reiter
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License version 2 as
-# published by the Free Software Foundation
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
 
 import os
 
@@ -15,13 +15,18 @@ from quodlibet.util.string import split_escape
 
 from quodlibet import browsers
 
-from quodlibet.compat import listfilter, text_type
 from quodlibet import util
-from quodlibet.util import print_d, print_e
+from quodlibet.util import print_d, print_e, copool
 
 from quodlibet.qltk.browser import LibraryBrowser
 from quodlibet.qltk.properties import SongProperties
 from quodlibet.util.library import scan_library
+
+from quodlibet.order.repeat import RepeatListForever, RepeatSongForever, \
+        OneSong
+from quodlibet.order.reorder import OrderWeighted, OrderShuffle
+
+from quodlibet.config import RATINGS
 
 
 class CommandError(Exception):
@@ -39,12 +44,12 @@ class CommandRegistry(object):
 
         The functions gets zero or more arguments as `fsnative`
         and should return `None` or `fsnative`. In case an error
-        occured the command should raise `CommandError`.
+        occurred the command should raise `CommandError`.
 
         Args:
             name (str): the command name
             args (int): amount of required arguments
-            optional (int): amoutn of additional optional arguments
+            optional (int): amount of additional optional arguments
         Returns:
             Callable
         """
@@ -144,18 +149,12 @@ def _pause(app):
 
 @registry.register("play")
 def _play(app):
-    player = app.player
-    if player.song:
-        player.paused = False
+    app.player.play()
 
 
 @registry.register("play-pause")
 def _play_pause(app):
-    player = app.player
-    if player.song is None:
-        player.reset()
-    else:
-        player.paused ^= True
+    app.player.playpause()
 
 
 @registry.register("stop")
@@ -176,7 +175,7 @@ def _volume(app, value):
     if value[0] in ('+', '-'):
         if len(value) > 1:
             try:
-                change = (int(value[1:]) / 100.0)
+                change = (float(value[1:]) / 100.0)
             except ValueError:
                 return
         else:
@@ -186,7 +185,7 @@ def _volume(app, value):
         volume = app.player.volume + change
     else:
         try:
-            volume = (int(value) / 100.0)
+            volume = (float(value) / 100.0)
         except ValueError:
             return
     app.player.volume = min(1.0, max(0.0, volume))
@@ -216,6 +215,18 @@ def _shuffle(app, value):
         po.shuffle = not po.shuffle
 
 
+@registry.register("shuffle-type", args=1)
+def _shuffle_type(app, value):
+    if value in ["random", "weighted"]:
+        app.player_options.shuffle = True
+        if value == "random":
+            app.window.order.shuffler = OrderShuffle
+        elif value == "weighted":
+            app.window.order.shuffler = OrderWeighted
+    elif value in ["off", "0"]:
+        app.player_options.shuffle = False
+
+
 @registry.register("repeat", args=1)
 def _repeat(app, value):
     po = app.player_options
@@ -226,6 +237,20 @@ def _repeat(app, value):
         po.repeat = True
     elif value in ["t", "toggle"]:
         po.repeat = not po.repeat
+
+
+@registry.register("repeat-type", args=1)
+def _repeat_type(app, value):
+    if value in ["current", "all", "one"]:
+        app.player_options.repeat = True
+        if value == "current":
+            app.window.order.repeater = RepeatSongForever
+        elif value == "all":
+            app.window.order.repeater = RepeatListForever
+        elif value == "one":
+            app.window.order.repeater = OneSong
+    elif value in ["off", "0"]:
+        app.player_options.repeat = False
 
 
 @registry.register("seek", args=1)
@@ -250,6 +275,19 @@ def _play_file(app, value):
     app.window.open_file(value)
 
 
+@registry.register("add-location", args=1)
+def _add_location(app, value):
+    if os.path.isfile(value):
+        ret = app.library.add_filename(value)
+        if not ret:
+            print_e("Couldn't add file to library")
+    elif os.path.isdir(value):
+        copool.add(app.library.scan, [value], cofuncid="library",
+                   funcid="library")
+    else:
+        print_e("Invalid location")
+
+
 @registry.register("toggle-window")
 def _toggle_window(app):
     if app.window.get_property('visible'):
@@ -268,20 +306,30 @@ def _show_window(app):
     app.show()
 
 
-@registry.register("set-rating", args=1)
-def _set_rating(app, value):
+@registry.register("rating", args=1)
+def _rating(app, value):
     song = app.player.song
     if not song:
         return
 
-    value = arg2text(value)
-
-    try:
-        song["~#rating"] = max(0.0, min(1.0, float(value)))
-    except (ValueError, TypeError):
-        pass
+    if value[0] in ('+', '-'):
+        if len(value) > 1:
+            try:
+                change = float(value[1:])
+            except ValueError:
+                return
+        else:
+            change = (1 / RATINGS.number)
+        if value[0] == '-':
+            change = -change
+        rating = song["~#rating"] + change
     else:
-        app.library.changed([song])
+        try:
+            rating = float(value)
+        except (ValueError, TypeError):
+            return
+    song["~#rating"] = max(0.0, min(1.0, rating))
+    app.library.changed([song])
 
 
 @registry.register("dump-browsers")
@@ -357,7 +405,7 @@ def _properties(app, value=None):
     else:
         songs = [player.song]
 
-    songs = listfilter(None, songs)
+    songs = list(filter(None, songs))
 
     if songs:
         window = SongProperties(library, songs, parent=window)
@@ -440,12 +488,6 @@ def _status(app):
     return text2fsn(status)
 
 
-@registry.register("song-list", args=1)
-def _song_list(app, value):
-    # deprecated
-    return
-
-
 @registry.register("queue", args=1)
 def _queue(app, value):
     window = app.window
@@ -495,7 +537,7 @@ def _print_query(app, query):
 @registry.register("print-query-text")
 def _print_query_text(app):
     if app.browser.can_filter_text():
-        return text2fsn(text_type(app.browser.get_filter_text()) + u"\n")
+        return text2fsn(str(app.browser.get_filter_text()) + u"\n")
 
 
 @registry.register("print-playing", optional=1)

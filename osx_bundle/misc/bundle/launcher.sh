@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 bundle=$(cd "$(dirname "$(dirname "$(dirname "$0")")")"; pwd)
 bundle_contents="$bundle"/Contents
@@ -30,35 +30,34 @@ export GI_TYPELIB_PATH="$bundle_lib/girepository-1.0"
 export GST_PLUGIN_SYSTEM_PATH="$bundle_lib/gstreamer-1.0"
 export GST_PLUGIN_SCANNER="$bundle_contents/MacOS/gst-plugin-scanner"
 
-export G_MESSAGES_DEBUG=all
-
 # Strip out the argument added by the OS.
 if /bin/expr "x$1" : '^x-psn_' > /dev/null; then
     shift 1
 fi
 
 #Set $PYTHON to point inside the bundle
-export PYTHON="$bundle_contents/MacOS/python"
+export PYTHON=$(echo "$bundle_contents/MacOS/python"*)
 export PYTHONHOME="$bundle_res"
 
 export GIO_MODULE_DIR="$bundle_lib/gio/modules"
 
 # GTLS_SYSTEM_CA_FILE sets the path in the gnutls backend of glib-networking
 # (the env var gets respected because we patch it.. not available upstream)
-export GTLS_SYSTEM_CA_FILE="$bundle_lib/python2.7/site-packages/certifi/cacert.pem"
+export GTLS_SYSTEM_CA_FILE=$(\
+    echo "$bundle_lib/python"*"/site-packages/certifi/cacert.pem")
 
 # temporary disable tooltips
 export QUODLIBET_NO_HINTS=yes
 
 # select target based on our basename
 APP=$(basename "$0")
-if [ "$APP" == "run" ]; then
+if [ "$APP" = "run" ]; then
     "$PYTHON" "$@"
-elif  [ "$APP" == "gst-plugin-scanner" ]; then
+elif  [ "$APP" = "gst-plugin-scanner" ]; then
     # Starting with 10.11 OSX will no longer pass DYLD_LIBRARY_PATH
     # to child processes. To work around use this launcher for the
     # GStreamer plugin scanner helper
     "$bundle_res/libexec/gstreamer-1.0/gst-plugin-scanner" "$@"
 else
-    "$PYTHON" "$bundle_contents/Resources/bin/$APP" "$@"
+    "$PYTHON" "$bundle_bin/$APP" "$@"
 fi

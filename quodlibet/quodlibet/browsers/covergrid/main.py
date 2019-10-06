@@ -1,12 +1,12 @@
-# -*- coding: utf-8 -*-
 # Copyright 2004-2007 Joe Wreschnig, Michael Urman, Iñigo Serna
 #           2009-2010 Steven Robertson
-#      2012,2013,2016 Nick Boultbee
+#           2012-2018 Nick Boultbee
 #           2009-2014 Christoph Reiter
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License version 2 as
-# published by the Free Software Foundation
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
 
 from __future__ import absolute_import
 
@@ -121,11 +121,12 @@ class CoverGrid(Browser, util.InstanceTracker, VisibleUpdate,
 
     _PATTERN_FN = os.path.join(quodlibet.get_user_dir(), "album_pattern")
     _DEFAULT_PATTERN_TEXT = DEFAULT_PATTERN_TEXT
+    STAR = ["~people", "album"]
 
     name = _("Cover Grid")
     accelerated_name = _("_Cover Grid")
     keys = ["CoverGrid"]
-    priority = 4
+    priority = 5
 
     def pack(self, songpane):
         container = self.songcontainer
@@ -141,6 +142,11 @@ class CoverGrid(Browser, util.InstanceTracker, VisibleUpdate,
     def init(klass, library):
         super(CoverGrid, klass).load_pattern()
 
+    def finalize(self, restored):
+        if not restored:
+            # Select the "All Albums" album, which is None
+            self.select_by_func(lambda r: r[0].album is None, one=True)
+
     @classmethod
     def _destroy_model(klass):
         klass.__model.destroy()
@@ -154,12 +160,12 @@ class CoverGrid(Browser, util.InstanceTracker, VisibleUpdate,
             covergrid.view.queue_resize()
 
     @classmethod
-    def toggle_vert(klass):
-        vert = config.getboolean("browsers", "covergrid_vertical", True)
+    def toggle_wide(klass):
+        wide = config.getboolean("browsers", "covergrid_wide", False)
         for covergrid in klass.instances():
             covergrid.songcontainer.set_orientation(
-                Gtk.Orientation.VERTICAL if vert
-                else Gtk.Orientation.HORIZONTAL)
+                Gtk.Orientation.HORIZONTAL if wide
+                else Gtk.Orientation.VERTICAL)
 
     @classmethod
     def update_mag(klass):
@@ -208,14 +214,14 @@ class CoverGrid(Browser, util.InstanceTracker, VisibleUpdate,
         self.set_orientation(Gtk.Orientation.VERTICAL)
         self.songcontainer = qltk.paned.ConfigRVPaned(
             "browsers", "covergrid_pos", 0.4)
-        if not config.getboolean("browsers", "covergrid_vertical", True):
+        if config.getboolean("browsers", "covergrid_wide", False):
             self.songcontainer.set_orientation(Gtk.Orientation.HORIZONTAL)
 
         self._register_instance()
         if self.__model is None:
             self._init_model(library)
 
-        self._cover_cancel = Gio.Cancellable.new()
+        self._cover_cancel = Gio.Cancellable()
 
         self.scrollwin = sw = ScrolledWindow()
         sw.set_shadow_type(Gtk.ShadowType.IN)
@@ -328,6 +334,8 @@ class CoverGrid(Browser, util.InstanceTracker, VisibleUpdate,
 
         self.enable_row_update(view, sw, self.view)
 
+        self.__update_filter()
+
         self.connect('key-press-event', self.__key_pressed, library.librarian)
 
         if app.cover_manager:
@@ -351,6 +359,9 @@ class CoverGrid(Browser, util.InstanceTracker, VisibleUpdate,
             if songs:
                 window = Information(librarian, songs, self)
                 window.show()
+            return True
+        elif qltk.is_accel(event, "<Primary>Return", "<Primary>KP_Enter"):
+            qltk.enqueue(self.__get_selected_songs(sort=True))
             return True
         elif qltk.is_accel(event, "<alt>Return"):
             songs = self.__get_selected_songs()
@@ -377,7 +388,7 @@ class CoverGrid(Browser, util.InstanceTracker, VisibleUpdate,
             if path is not None:
                 model.row_changed(path, model.get_iter(path))
             # XXX: icon view seems to ignore row_changed signals for pixbufs..
-            self.queue_resize()
+            self.queue_draw()
 
         item = model.get_value(iter_)
         scale_factor = self.get_scale_factor() * mag
@@ -395,12 +406,14 @@ class CoverGrid(Browser, util.InstanceTracker, VisibleUpdate,
         if not klass.instances():
             klass._destroy_model()
 
-    def __update_filter(self, entry, text, scroll_up=True, restore=False):
+    def __update_filter(self, entry=None, text=None, scroll_up=True,
+                        restore=False):
         model = self.view.get_model()
 
         self.__filter = None
-        if not Query.match_all(text):
-            self.__filter = Query(text, star=["~people", "album"]).search
+        query = self.__search.get_query(self.STAR)
+        if not query.matches_all:
+            self.__filter = query.search
         self.__bg_filter = background_filter()
 
         self.__inhibit()
@@ -410,7 +423,7 @@ class CoverGrid(Browser, util.InstanceTracker, VisibleUpdate,
         # way to implement this
 
         if (not restore or self.__filter or self.__bg_filter) or (not
-            config.getboolean("browsers", "covergrid_all", False)):
+            config.getboolean("browsers", "covergrid_all", True)):
             model.refilter()
 
         self.__uninhibit()
@@ -423,7 +436,7 @@ class CoverGrid(Browser, util.InstanceTracker, VisibleUpdate,
             return True
         else:
             if album is None:
-                return config.getboolean("browsers", "covergrid_all", False)
+                return config.getboolean("browsers", "covergrid_all", True)
             elif b is None:
                 return f(album)
             elif f is None:
@@ -434,8 +447,8 @@ class CoverGrid(Browser, util.InstanceTracker, VisibleUpdate,
     def __search_func(self, model, column, key, iter_, data):
         album = model.get_album(iter_)
         if album is None:
-            return config.getboolean("browsers", "covergrid_all", False)
-        key = util.gdecode(key).lower()
+            return config.getboolean("browsers", "covergrid_all", True)
+        key = key.lower()
         title = album.title.lower()
         if key in title:
             return False
@@ -550,7 +563,7 @@ class CoverGrid(Browser, util.InstanceTracker, VisibleUpdate,
 
     def filter_text(self, text):
         self.__search.set_text(text)
-        if Query.is_parsable(text):
+        if Query(text).is_parsable:
             self.__update_filter(self.__search, text)
             # self.__inhibit()
             #self.view.set_cursor((0,), None, False)
@@ -600,13 +613,13 @@ class CoverGrid(Browser, util.InstanceTracker, VisibleUpdate,
         self.__inhibit()
         changed = self.select_by_func(
             lambda r: r[0].album and r[0].album.key in values)
+        self.view.grab_focus()
         self.__uninhibit()
         if changed:
             self.activate()
 
     def unfilter(self):
         self.filter_text("")
-        #self.view.set_cursor((0,), None, False)
 
     def activate(self):
         self.view.emit('selection-changed')
@@ -623,23 +636,21 @@ class CoverGrid(Browser, util.InstanceTracker, VisibleUpdate,
         entry.set_text(text)
 
         # update_filter expects a parsable query
-        if Query.is_parsable(text):
+        if Query(text).is_parsable:
             self.__update_filter(entry, text, scroll_up=False, restore=True)
 
         keys = config.gettext("browsers", "covergrid", "").split("\n")
 
-        # FIXME: If albums is "" then it could be either all albums or
-        # no albums. If it's "" and some other stuff, assume no albums,
-        # otherwise all albums.
         self.__inhibit()
         if keys != [""]:
-
             def select_fun(row):
                 album = row[0].album
                 if not album:  # all
                     return False
                 return album.str_key in keys
             self.select_by_func(select_fun)
+        else:
+            self.select_by_func(lambda r: r[0].album is None)
         self.__uninhibit()
 
     def scroll(self, song):

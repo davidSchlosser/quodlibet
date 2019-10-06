@@ -1,13 +1,16 @@
-# -*- coding: utf-8 -*-
 # Copyright 2012,2013 Christoph Reiter
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License version 2 as
-# published by the Free Software Foundation
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
 
 import os
 import stat
 import shlex
+import shutil
+
+from senf import environ
 
 from quodlibet import _
 from quodlibet.util.tags import MACHINE_TAGS, sortkey
@@ -121,10 +124,12 @@ def get_editor_args(fallback_command="nano"):
     Can't fail, but the result might not be a valid/existing command.
     """
 
-    if "VISUAL" in util.environ:
-        editor = util.environ["VISUAL"]
-    elif "EDITOR" in util.environ:
-        editor = util.environ["EDITOR"]
+    if "VISUAL" in environ:
+        editor = environ["VISUAL"]
+    elif "EDITOR" in environ:
+        editor = environ["EDITOR"]
+    elif shutil.which("editor"):
+        editor = "editor"
     else:
         editor = fallback_command
 

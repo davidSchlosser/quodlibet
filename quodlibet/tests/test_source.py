@@ -1,15 +1,17 @@
-# -*- coding: utf-8 -*-
 # Copyright 2014, 2015 Christoph Reiter
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License version 2 as
-# published by the Free Software Foundation
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
 
 import os
 import re
 import pprint
 
 from gi.repository import Gtk
+
+from quodlibet.util import get_module_dir
 
 from tests import TestCase
 
@@ -18,11 +20,13 @@ def iter_py_paths():
     """Iterates over all Python source files that are part of Quod Libet"""
 
     import quodlibet
-    root = os.path.dirname(quodlibet.__path__[0])
+    root = os.path.dirname(get_module_dir(quodlibet))
 
     skip = [
+        os.path.join(root, "build"),
+        os.path.join(root, "dist"),
         os.path.join(root, "docs"),
-        os.path.join(root, "quodlibet", "optpackages"),
+        os.path.join(root, "quodlibet", "packages"),
     ]
     for dirpath, dirnames, filenames in os.walk(root):
         if any((dirpath.startswith(s + os.sep) or s == dirpath)
@@ -34,43 +38,9 @@ def iter_py_paths():
                 yield os.path.join(dirpath, filename)
 
 
-class TSourceEncoding(TestCase):
-    """Enforce utf-8 source encoding everywhere.
-    Plus give helpful message for fixing it.
-    """
-
-    def test_main(self):
-        for path in iter_py_paths():
-            with open(path, "rb") as h:
-                match = None
-                for i, line in enumerate(h):
-                    # https://www.python.org/dev/peps/pep-0263/
-                    match = match or re.search(b"coding[:=]\s*([-\w.]+)", line)
-                    if i >= 2:
-                        break
-                if match:
-                    match = match.group(1)
-                self.assertEqual(match, b"utf-8",
-                                 msg="%s has no utf-8 source encoding set\n"
-                                     "Insert:\n# -*- coding: utf-8 -*-" % path)
-
-
 class TLicense(TestCase):
 
     ALLOWED = ["""
-This program is free software; you can redistribute it
-and/or modify it under the terms of the GNU General Public License version 2
-as published by the Free Software Foundation
-""", """
-This program is free software; you can redistribute it
-and/or modify it under the terms of version 2 of the GNU General Public
-License as published by the Free Software Foundation
-""", """
-This software and accompanying documentation, if any, may
-be freely used, distributed, and/or modified, in any form and for any
-purpose, as long as this notice is preserved. There is no warranty, either
-express or implied, for this software
-""", """
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
 the Free Software Foundation; either version 2 of the License, or

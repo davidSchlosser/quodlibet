@@ -1,23 +1,21 @@
-# -*- coding: utf-8 -*-
 # Copyright 2012,2013 Christoph Reiter
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License version 2 as
-# published by the Free Software Foundation
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
 
 import os
 import sys
 
-from senf import fsnative, path2fsn
+from senf import fsnative, path2fsn, environ
 
 from tests import TestCase, get_data_path, mkstemp
 from .helper import capture_output, get_temp_copy
 
 from quodlibet import config
-from quodlibet import util
 from quodlibet.formats import MusicFile
 from quodlibet.operon.main import main as operon_main
-from quodlibet.compat import listkeys
 
 
 def call(args):
@@ -102,7 +100,7 @@ class TOperonAdd(TOperonBase):
         self.check_true(["add", "tag", "value", self.f, self.f], False, False)
 
     def test_add_check(self):
-        keys = listkeys(self.s)
+        keys = list(self.s.keys())
         self.check_true(["add", "foo", "bar", self.f], False, False)
         self.s.reload()
         self.failUnlessEqual(self.s["foo"], "bar")
@@ -334,7 +332,7 @@ class TOperonEdit(TOperonBase):
 
     def test_nonexist_editor(self):
         editor = fsnative(u"/this/path/does/not/exist/hopefully")
-        util.environ["VISUAL"] = editor
+        environ["VISUAL"] = editor
         e = self.check_false(["edit", self.f], False, True)[1]
         self.assertTrue(editor in e)
 

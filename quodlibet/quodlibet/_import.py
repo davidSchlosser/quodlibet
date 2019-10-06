@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Copyright 2017 Christoph Reiter
 #
 # This program is free software; you can redistribute it and/or modify
@@ -13,7 +12,7 @@ import importlib
 class RedirectImportHook(object):
     """Import hook which loads packages as sub packages.
 
-    e.g. "import raven" will import "quodlibet.optpackages.raven" even
+    e.g. "import raven" will import "quodlibet.packages.raven" even
     if raven uses absolute imports internally.
     """
 
@@ -54,9 +53,5 @@ def install_redirect_import_hook():
     """Install the import hook, does not import anything"""
 
     import_hook = RedirectImportHook(
-        "quodlibet.optpackages", ["raven", "contextlib2"])
-    sys.meta_path.insert(0, import_hook)
-
-    import_hook = RedirectImportHook(
-        "quodlibet.packages", ["senf"])
+        "quodlibet.packages", ["senf", "raven"])
     sys.meta_path.insert(0, import_hook)

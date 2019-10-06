@@ -1,10 +1,10 @@
-# -*- coding: utf-8 -*-
 # Copyright 2005-2011 Joe Wreschnig, Michael Urman, Christoph Reiter,
 #                     Nick Boultbee
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License version 2 as
-# published by the Free Software Foundation
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
 
 import os
 
@@ -192,7 +192,7 @@ class StandaloneEditor(_KeyValueEditor):
         """Returns a list of tuples representing k,v pairs of the given file"""
         ret = []
         if os.path.exists(filename):
-            fileobj = open(filename, "rU")
+            fileobj = open(filename, "r", encoding="utf-8")
             lines = list(fileobj.readlines())
             for i in range(len(lines) // 2):
                 ret.append((lines[i * 2 + 1].strip(), lines[i * 2].strip()))
@@ -207,7 +207,7 @@ class StandaloneEditor(_KeyValueEditor):
     def fill_values(self):
         filename = self.filename + ".saved"
         if os.path.exists(filename):
-            fileobj = open(filename, "rU")
+            fileobj = open(filename, "r", encoding="utf-8")
             lines = list(fileobj.readlines())
             lines.reverse()
             while len(lines) > 1:
@@ -225,7 +225,8 @@ class StandaloneEditor(_KeyValueEditor):
                 if not os.path.isdir(os.path.dirname(self.filename)):
                     os.makedirs(os.path.dirname(self.filename))
 
-            with open(self.filename + ".saved", "w") as saved:
+            with open(self.filename + ".saved", "w",
+                      encoding="utf-8") as saved:
                 for row in self.model:
                     saved.write(row[0] + "\n")
                     saved.write(row[1] + "\n")
@@ -249,7 +250,7 @@ class ComboBoxEntrySave(Gtk.ComboBox):
     """A ComboBoxEntry that remembers the past 'count' strings entered,
     and can save itself to (and load itself from) a filename or file-like."""
 
-    # gets emited if the text entry changes
+    # gets emitted if the text entry changes
     # mainly to filter out model changes that don't have any effect
     __gsignals__ = {
         'text-changed': (GObject.SignalFlags.RUN_LAST, None, ()),
@@ -329,7 +330,7 @@ class ComboBoxEntrySave(Gtk.ComboBox):
             return
 
         if os.path.exists(filename + ".saved"):
-            with open(filename + ".saved", "rU") as fileobj:
+            with open(filename + ".saved", "r", encoding="utf-8") as fileobj:
                 lines = list(fileobj.readlines())
             lines.reverse()
             while len(lines) > 1:
@@ -337,7 +338,7 @@ class ComboBoxEntrySave(Gtk.ComboBox):
                     row=[lines.pop(1).strip(), lines.pop(0).strip(), None])
 
         if os.path.exists(filename):
-            with open(filename, "rU") as fileobj:
+            with open(filename, "r", encoding="utf-8") as fileobj:
                 for line in fileobj.readlines():
                     line = line.strip()
                     model.append(row=[line, line, None])
@@ -371,8 +372,8 @@ class ComboBoxEntrySave(Gtk.ComboBox):
                 if not os.path.isdir(os.path.dirname(filename)):
                     os.makedirs(os.path.dirname(filename))
 
-            with open(filename + ".saved", "w") as saved:
-                with open(filename, "w") as memory:
+            with open(filename + ".saved", "w", encoding="utf-8") as saved:
+                with open(filename, "w", encoding="utf-8") as memory:
                     target = saved
                     for row in self.get_model():
                         if row[0] is None:

@@ -1,9 +1,9 @@
-# -*- coding: utf-8 -*-
 # Copyright 2014 Nick Boultbee
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License version 2 as
-# published by the Free Software Foundation
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
 
 import os
 
@@ -23,7 +23,7 @@ OTHER_PATH = fsnative(u"/opt/party")
 GVFS_PATH = fsnative(u"/run/user/12345/gvfs/smb-share"
                       ":server=12.23.34.45,share=/foo/bar/baz/path")
 GVFS_PATH_ESCAPED = fsnative(u"/run/user/12345/gvfs/smb-share"
-                              "\:server=12.23.34.45,share=/foo/bar/baz/path")
+                              "\\:server=12.23.34.45,share=/foo/bar/baz/path")
 
 
 class Tlibrary_utils(TestCase):

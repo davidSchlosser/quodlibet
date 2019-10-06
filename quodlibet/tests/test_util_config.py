@@ -1,14 +1,13 @@
-# -*- coding: utf-8 -*-
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License version 2 as
-# published by the Free Software Foundation
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
 
 import os
 from tests import TestCase, mkstemp
 from .helper import temp_filename
 
 from quodlibet.util.config import Config, Error, ConfigProxy
-from quodlibet.compat import PY2
 
 
 class TConfig(TestCase):
@@ -85,6 +84,13 @@ class TConfig(TestCase):
         conf.reset("player", "backend")
         conf.defaults.set("player", "backend", "blah_new")
         self.assertEqual(conf.get("player", "backend"), "blah_new")
+
+    def test_reset_no_section(self):
+        conf = Config()
+        conf.defaults.add_section("player")
+        conf.defaults.set("player", "backend", "blah")
+        conf.reset("player", "backend")
+        assert conf.get("player", "backend") == "blah"
 
     def test_initial_after_set(self):
         conf = Config()
@@ -201,8 +207,6 @@ class TConfig(TestCase):
         conf = Config()
         conf.add_section("foo")
         conf.setbytes("foo", "bar", b"\xff\xff\xff\xff\xff\xff")
-        if PY2:
-            self.assertRaises(Error, conf.getstringlist, "foo", "bar")
 
     def test_getlist(self):
         conf = Config()

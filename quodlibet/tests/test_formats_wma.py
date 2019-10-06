@@ -1,18 +1,18 @@
-# -*- coding: utf-8 -*-
 # Copyright 2013 Christoph Reiter
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License version 2 as
-# published by the Free Software Foundation
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
 
 import os
+from io import BytesIO
 
 from mutagen import asf
 
 from tests import TestCase, get_data_path
 from quodlibet.formats.wma import WMAFile, unpack_image, pack_image
 from quodlibet.formats._image import APICType, EmbeddedImage
-from quodlibet.compat import cBytesIO
 
 from .helper import get_temp_copy
 
@@ -61,6 +61,11 @@ class TWMAFile(TestCase):
         self.assertEqual(self.song("~#bitrate"), 64)
         self.assertEqual(self.song2("~#bitrate"), 38)
         self.assertEqual(self.song3("~#bitrate"), 5)
+
+    def test_sample_rate(self):
+        assert self.song("~#samplerate") == 48000
+        assert self.song2("~#samplerate") == 44100
+        assert self.song3("~#samplerate") == 8000
 
     def test_write(self):
         self.song.write()
@@ -178,7 +183,7 @@ class TWMAFile(TestCase):
         self.song.clear_images()
 
     def test_set_image(self):
-        fileobj = cBytesIO(b"foo")
+        fileobj = BytesIO(b"foo")
         image = EmbeddedImage(fileobj, "image/jpeg", 10, 10, 8)
         self.assertFalse(self.song.has_images)
         self.song.set_image(image)

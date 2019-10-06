@@ -1,9 +1,9 @@
-# -*- coding: utf-8 -*-
 # Copyright 2014 Christoph Reiter
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License version 2 as
-# published by the Free Software Foundation
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
 
 """Some helper function for loading and converting image data."""
 
@@ -188,4 +188,4 @@ def pixbuf_from_file(fileobj, boundary, scale_factor=1):
     w *= scale_factor
     h *= scale_factor
 
-    return scale(pixbuf, (w, h), scale_up=False)
+    return scale(pixbuf, (w, h), scale_up=True)

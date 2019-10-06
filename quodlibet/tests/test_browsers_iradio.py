@@ -1,16 +1,62 @@
-# -*- coding: utf-8 -*-
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License version 2 as
-# published by the Free Software Foundation
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
 
-from tests import TestCase
+import io
+
+from quodlibet.util import is_windows, is_osx
+from tests import TestCase, skipIf
 
 from quodlibet.library import SongLibrary
 from quodlibet.formats import AudioFile
-from quodlibet.browsers.iradio import InternetRadio, IRFile, QuestionBar
+from quodlibet.browsers.iradio import InternetRadio, IRFile, QuestionBar, \
+    parse_taglist, ParsePLS, ParseM3U, download_taglist, STATION_LIST_URL
 import quodlibet.config
+from gi.repository import Gtk
 
 quodlibet.config.RATINGS = quodlibet.config.HardCodedRatingsPrefs()
+
+
+def test_parse_taglist():
+    parse_taglist(b"")
+    stations = parse_taglist(b"""\
+uri=http://foo.bar
+artist=foo
+artist=bar
+~listenerpeak=42
+""")
+
+    assert len(stations) == 1
+    assert stations[0]["~#listenerpeak"] == 42
+    assert stations[0].list("artist") == ["foo", "bar"]
+
+
+def test_parse_pls():
+    f = io.BytesIO(b"""\
+[playlist]
+Title1=Here enter name of the station
+File1=http://stream2.streamq.net:8020/
+NumberOfEntries=1
+""")
+
+    r = ParsePLS(f)
+    assert len(r) == 1
+    assert r[0]("~uri") == "http://stream2.streamq.net:8020/"
+    assert r[0]("title") == "Here enter name of the station"
+
+
+def test_parse_m3u():
+    f = io.BytesIO(b"""\
+#EXTM3U
+
+#EXTINF:123, Sample artist - Sample title
+http://stream2.streamq.net:8020/
+""")
+
+    r = ParseM3U(f)
+    assert len(r) == 1
+    assert r[0]("~uri") == "http://stream2.streamq.net:8020/"
 
 
 class TQuestionBar(TestCase):
@@ -99,3 +145,25 @@ class TIRFile(TestCase):
         new.from_dump(dump)
         self.assertTrue("title" not in new)
         self.assertTrue("artist" not in new)
+
+    @skipIf(is_windows() or is_osx(), "Don't need to test all the time")
+    def test_download_tags(self):
+        self.received = []
+        # TODO: parameterise this, spin up a local HTTP server, inject this.
+        url = STATION_LIST_URL
+
+        def cb(data):
+            assert data
+            self.received += data
+
+        ret = list(download_taglist(cb, None))
+        run_loop()
+        assert all(ret)
+        assert self.received, "No stations received from %s" % url
+        assert len(self.received) > 100
+        # TODO: some more targetted tests
+
+
+def run_loop():
+    while Gtk.events_pending():
+        Gtk.main_iteration()

@@ -1,10 +1,10 @@
-# -*- coding: utf-8 -*-
 # Copyright 2005 Joe Wreschnig, Michael Urman
 #           2017 Fredrik Strupe
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License version 2 as
-# published by the Free Software Foundation
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
 
 from gi.repository import Gtk
 
@@ -287,7 +287,8 @@ class ConfigMultiRPaned(MultiRPaned):
             self.__changed()
 
     def __changed(self, widget=None, event=None):
-        """Callback function for individual paneds. Saves all current paned widths.
+        """Callback function for individual paneds. Saves all current paned
+        widths.
 
         Widget and event default to None, as they aren't really used. They
         are just required for GTK.

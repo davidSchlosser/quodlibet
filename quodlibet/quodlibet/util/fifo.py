@@ -1,10 +1,10 @@
-# -*- coding: utf-8 -*-
 # Copyright 2014 Christoph Reiter
 #           2017 Nick Boultbee
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License version 2 as
-# published by the Free Software Foundation
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
 
 import os
 import errno
@@ -142,6 +142,13 @@ def write_fifo(fifo_path, data):
                 signal.signal(signal.SIGALRM, signal.SIG_IGN)
                 return h.read()
         except TypeError:
+            # In case the main instance deadlocks we can write to it, but
+            # reading will time out. Assume it is broken and delete the
+            # fifo.
+            try:
+                os.unlink(fifo_path)
+            except OSError:
+                pass
             raise EnvironmentError("timeout")
     finally:
         try:

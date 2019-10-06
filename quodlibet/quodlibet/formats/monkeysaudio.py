@@ -1,9 +1,9 @@
-# -*- coding: utf-8 -*-
 # Copyright 2012 Christoph Reiter
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License version 2 as
-# published by the Free Software Foundation
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
 
 from mutagen.monkeysaudio import MonkeysAudio
 
@@ -20,6 +20,9 @@ class MonkeysAudioFile(APEv2File):
         super(MonkeysAudioFile, self).__init__(filename, audio)
         self["~#length"] = int(audio.info.length)
         self["~#channels"] = audio.info.channels
+        self["~#samplerate"] = audio.info.sample_rate
+        if hasattr(audio.info, "bits_per_sample"):
+            self["~#bitdepth"] = audio.info.bits_per_sample
         self.sanitize(filename)
 
 loader = MonkeysAudioFile

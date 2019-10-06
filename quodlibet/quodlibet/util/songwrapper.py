@@ -1,10 +1,10 @@
-# -*- coding: utf-8 -*-
 # Copyright 2005 Michael Urman
 #           2016 Nick Boultbee
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License version 2 as
-# published by the Free Software Foundation
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
 
 from quodlibet import _
 from quodlibet.util.dprint import print_d
@@ -60,10 +60,14 @@ class SongWrapper(object):
         return hash(self._song)
 
     def __eq__(self, other):
-        return self._song == other._song
+        if hasattr(other, '_song'):
+            other = other._song
+        return self._song == other
 
     def __lt__(self, other):
-        return self._song < other._song
+        if hasattr(other, '_song'):
+            other = other._song
+        return self._song < other
 
     def __getitem__(self, *args):
         return self._song.__getitem__(*args)

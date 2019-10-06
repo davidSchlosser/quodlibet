@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Copyright 2017 Christoph Reiter
 #
 # This program is free software; you can redistribute it and/or modify
@@ -10,7 +9,6 @@ from gi.repository import Gtk
 
 from quodlibet import _
 from quodlibet import app
-from quodlibet import util
 from quodlibet.qltk.entry import UndoEntry
 
 
@@ -56,7 +54,7 @@ class ErrorDialog(Gtk.MessageDialog):
     RESPONSE_SUBMIT = 2
     RESPONSE_BUGREPORT = 3
 
-    def __init__(self, parent, error_text, show_bug_report):
+    def __init__(self, parent, error_text):
         main_text = _("An Error Occurred")
         secondary_text = _(
             "You can ignore this error, but the application might be unstable "
@@ -68,10 +66,7 @@ class ErrorDialog(Gtk.MessageDialog):
 
         self.set_transient_for(parent)
         self.set_modal(True)
-        if show_bug_report:
-            self.add_button(_("File Bug Report"), self.RESPONSE_BUGREPORT)
-        else:
-            self.add_button(_("Submit Error Report"), self.RESPONSE_SUBMIT)
+        self.add_button(_("Submit Error Report"), self.RESPONSE_SUBMIT)
         self.add_button(_("Quit Program"), self.RESPONSE_QUIT)
         self.add_button(_("Ignore Error"), Gtk.ResponseType.CANCEL)
         self.set_default_response(Gtk.ResponseType.CANCEL)
@@ -122,10 +117,10 @@ class SubmitErrorDialog(Gtk.MessageDialog):
         self.get_widget_for_response(Gtk.ResponseType.CANCEL).grab_focus()
 
     def get_comment(self):
-        """"Returns the user provided error description
+        """Returns the user provided error description
 
         Returns
             text_Type
         """
 
-        return util.gdecode(self._entry.get_text())
+        return self._entry.get_text()

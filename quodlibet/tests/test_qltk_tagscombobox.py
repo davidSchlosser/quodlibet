@@ -1,7 +1,7 @@
-# -*- coding: utf-8 -*-
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License version 2 as
-# published by the Free Software Foundation
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
 
 from tests import TestCase, skipIf
 
@@ -37,13 +37,13 @@ class TagsComboMixin(object):
 
 
 @skipIf(is_wayland(), "crashes..")
-class TTagsComboBox(TagsCombo):
+class TTagsComboBox(TagsCombo, TagsComboMixin):
     from quodlibet.qltk.tagscombobox import TagsComboBox as Kind
     Kind
 
 
 @skipIf(is_wayland(), "crashes..")
-class TTagsComboBoxEntry(TagsCombo):
+class TTagsComboBoxEntry(TagsCombo, TagsComboMixin):
     from quodlibet.qltk.tagscombobox import TagsComboBoxEntry as Kind
     Kind
 

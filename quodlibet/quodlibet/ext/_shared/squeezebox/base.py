@@ -1,9 +1,9 @@
-# -*- coding: utf-8 -*-
 # Copyright 2014 Nick Boultbee
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License version 2 as
-# published by the Free Software Foundation
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
 
 import os
 from gi.repository import Gtk, GLib
@@ -127,7 +127,7 @@ class SqueezeboxPluginMixin(PluginConfigMixin):
 
         ve = UndoEntry()
         ve.set_text(str(cfg["library_dir"]))
-        ve.set_tooltip_text(_("Library directory the server connects to."))
+        ve.set_tooltip_text(_("Library directory the server connects to"))
         ve.connect('changed', value_changed, 'server_library_dir')
         rows.append((Gtk.Label(label=_("Library path:")), ve))
 

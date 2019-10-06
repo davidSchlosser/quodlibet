@@ -1,11 +1,11 @@
-# -*- coding: utf-8 -*-
 # Copyright 2004-2006 Joe Wreschnig, Michael Urman, Iñigo Serna
 #                2014 Nick Boultbee
 #                2017 Fredrik Strupe
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License version 2 as
-# published by the Free Software Foundation
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
 
 from gi.repository import Gtk, GObject
 from senf import fsn2text
@@ -17,7 +17,8 @@ from quodlibet.plugins import PluginHandler
 from quodlibet.qltk.ccb import ConfigCheckButton
 from quodlibet.qltk.msg import WarningMessage, ErrorMessage
 from quodlibet.qltk import Icons
-from quodlibet.util import connect_obj
+from quodlibet.util import connect_obj, connect_destroy
+from quodlibet.errorreport import errorhook
 
 
 class OverwriteWarning(WarningMessage):
@@ -141,6 +142,7 @@ class FilterPluginBox(Gtk.VBox):
         hb = Gtk.HBox()
         expander = Gtk.Expander(label=_(u"_More options…"))
         expander.set_use_underline(True)
+        expander.set_no_show_all(True)
         hb.pack_start(expander, True, True, 0)
         self.pack_start(hb, False, True, 0)
 
@@ -150,7 +152,7 @@ class FilterPluginBox(Gtk.VBox):
         vbox = Gtk.VBox()
         expander.add(vbox)
 
-        plugin_handler.connect(
+        connect_destroy(plugin_handler,
             "changed", self.__refresh_plugins, vbox, expander)
 
         expander.connect("notify::expanded", self.__notify_expanded, vbox)
@@ -170,7 +172,7 @@ class FilterPluginBox(Gtk.VBox):
             try:
                 f = Kind()
             except:
-                util.print_exc()
+                errorhook()
                 continue
             else:
                 instances.append(f)
@@ -184,7 +186,7 @@ class FilterPluginBox(Gtk.VBox):
             try:
                 vbox.pack_start(f, True, True, 0)
             except:
-                util.print_exc()
+                errorhook()
                 f.destroy()
                 continue
 
@@ -194,7 +196,7 @@ class FilterPluginBox(Gtk.VBox):
                 try:
                     f.connect('changed', lambda *x: self.emit('changed'))
                 except:
-                    util.print_exc()
+                    errorhook()
                     continue
 
             self.__plugins.append(f)

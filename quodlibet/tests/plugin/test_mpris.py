@@ -1,9 +1,10 @@
-# -*- coding: utf-8 -*-
 # Copyright 2012,2013 Christoph Reiter <reiter.christoph@gmail.com>
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of version 2 of the GNU General Public License as
-# published by the Free Software Foundation.
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+
 import time
 
 try:
@@ -20,7 +21,6 @@ from tests.plugin import PluginTestCase, init_fake_app, destroy_fake_app
 from quodlibet.formats import AudioFile
 from quodlibet import config
 from quodlibet import app
-from quodlibet.compat import iteritems
 
 
 A1 = AudioFile(
@@ -34,7 +34,7 @@ A1.sanitize()
 A2 = AudioFile(
         {'album': u'greatness2\ufffe', 'title': 'superlative',
          'artist': u'fooman\ufffe', '~#lastplayed': 1234, '~#rating': 1.0,
-         '~filename': fsnative(u'/foo')})
+         '~filename': fsnative(u'/foo'), 'discnumber': '4294967296'})
 A2.sanitize()
 
 MAX_TIME = 3
@@ -43,11 +43,16 @@ MAX_TIME = 3
 @skipUnless(dbus, "no dbus")
 class TMPRIS(PluginTestCase):
 
+    BUS_NAME = "org.mpris.MediaPlayer2.quodlibet"
+
     def setUp(self):
         self.plugin = self.plugins["mpris"].cls
 
         config.init()
         init_fake_app()
+
+        while Gtk.events_pending():
+            Gtk.main_iteration()
 
         app.window.songlist.set_songs([A1, A2])
         app.player.go_to(None)
@@ -58,9 +63,9 @@ class TMPRIS(PluginTestCase):
     def tearDown(self):
         bus = dbus.SessionBus()
         self.failUnless(
-            bus.name_has_owner("org.mpris.quodlibet"))
+            bus.name_has_owner(self.BUS_NAME))
         self.m.disabled()
-        self.failIf(bus.name_has_owner("org.mpris.quodlibet"))
+        self.failIf(bus.name_has_owner(self.BUS_NAME))
 
         destroy_fake_app()
         config.quit()
@@ -68,25 +73,31 @@ class TMPRIS(PluginTestCase):
 
     def test_name_owner(self):
         bus = dbus.SessionBus()
-        self.failUnless(bus.name_has_owner("org.mpris.quodlibet"))
+        self.failUnless(bus.name_has_owner(self.BUS_NAME))
 
     def _main_iface(self):
         bus = dbus.SessionBus()
-        obj = bus.get_object("org.mpris.quodlibet", "/org/mpris/MediaPlayer2")
+        obj = bus.get_object(self.BUS_NAME, "/org/mpris/MediaPlayer2")
         return dbus.Interface(obj,
                               dbus_interface="org.mpris.MediaPlayer2")
 
     def _prop(self):
         bus = dbus.SessionBus()
-        obj = bus.get_object("org.mpris.quodlibet", "/org/mpris/MediaPlayer2")
+        obj = bus.get_object(self.BUS_NAME, "/org/mpris/MediaPlayer2")
         return dbus.Interface(obj,
                               dbus_interface="org.freedesktop.DBus.Properties")
 
     def _player_iface(self):
         bus = dbus.SessionBus()
-        obj = bus.get_object("org.mpris.quodlibet", "/org/mpris/MediaPlayer2")
+        obj = bus.get_object(self.BUS_NAME, "/org/mpris/MediaPlayer2")
         return dbus.Interface(obj,
                               dbus_interface="org.mpris.MediaPlayer2.Player")
+
+    def _introspect_iface(self):
+        bus = dbus.SessionBus()
+        obj = bus.get_object(self.BUS_NAME, "/org/mpris/MediaPlayer2")
+        return dbus.Interface(
+            obj, dbus_interface="org.freedesktop.DBus.Introspectable")
 
     def _reply(self, *args):
         self._replies.append(args)
@@ -119,11 +130,11 @@ class TMPRIS(PluginTestCase):
             "CanSetFullscreen": dbus.Boolean(False),
             "HasTrackList": dbus.Boolean(False),
             "Identity": dbus.String("Quod Libet"),
-            "DesktopEntry": dbus.String("quodlibet"),
+            "DesktopEntry": dbus.String("io.github.quodlibet.QuodLibet"),
             "SupportedUriSchemes": dbus.Array(),
         }
 
-        for key, value in iteritems(props):
+        for key, value in props.items():
             self._prop().Get(piface, key, **args)
             resp = self._wait()[0]
             self.failUnlessEqual(resp, value)
@@ -131,6 +142,9 @@ class TMPRIS(PluginTestCase):
 
         self._prop().Get(piface, "SupportedMimeTypes", **args)
         self.failUnless("audio/vorbis" in self._wait()[0])
+
+        self._introspect_iface().Introspect(**args)
+        assert self._wait()
 
     def test_player(self):
         args = {"reply_handler": self._reply, "error_handler": self._error}
@@ -153,11 +167,26 @@ class TMPRIS(PluginTestCase):
             "CanControl": dbus.Boolean(True),
         }
 
-        for key, value in iteritems(props):
+        for key, value in props.items():
             self._prop().Get(piface, key, **args)
             resp = self._wait(msg="for key '%s'" % key)[0]
             self.failUnlessEqual(resp, value)
             self.failUnless(isinstance(resp, type(value)))
+
+    def test_volume_property(self):
+        args = {"reply_handler": self._reply, "error_handler": self._error}
+        piface = "org.mpris.MediaPlayer2.Player"
+
+        def get_volume():
+            self._prop().Get(piface, "Volume", **args)
+            return float(self._wait()[0])
+
+        assert get_volume() == 1.0
+        app.player.volume = 0.5
+        assert get_volume() == 0.5
+        self._prop().Set(piface, "Volume", 0.25, **args)
+        self._wait()
+        assert app.player.volume == 0.25
 
     def test_metadata(self):
         args = {"reply_handler": self._reply, "error_handler": self._error}
@@ -173,6 +202,7 @@ class TMPRIS(PluginTestCase):
         # go to next song
         self._player_iface().Next(**args)
         self._wait()
+        self.m.plugin_on_song_started(app.player.info)
 
         self._prop().Get(piface, "Metadata", **args)
         resp = self._wait()[0]
@@ -215,8 +245,11 @@ class TMPRIS(PluginTestCase):
         # go to next song with invalid utf-8
         self._player_iface().Next(**args)
         self._wait()
+        self.m.plugin_on_song_started(app.player.info)
 
         self._prop().Get(piface, "Metadata", **args)
         resp = self._wait()[0]
         self.failUnlessEqual(resp["xesam:album"], u'greatness2\ufffd')
         self.failUnlessEqual(resp["xesam:artist"], [u'fooman\ufffd'])
+        # overflow
+        assert resp["xesam:discNumber"] == 0

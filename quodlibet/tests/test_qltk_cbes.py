@@ -1,7 +1,7 @@
-# -*- coding: utf-8 -*-
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License version 2 as
-# published by the Free Software Foundation
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
 
 from tests import TestCase, mkstemp
 
@@ -67,7 +67,7 @@ class TComboBoxEntrySave(TestCase):
 
     def test_initial_size(self):
         # 1 saved, Edit, separator, 2 remembered
-        self.failUnlessEqual(5, len(self.cbes.get_model()))
+        self.failUnlessEqual(len(self.cbes.get_model()), 5)
 
     def test_prepend_text(self):
         self.cbes.prepend_text("pattern 3")

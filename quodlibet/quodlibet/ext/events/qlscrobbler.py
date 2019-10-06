@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # QLScrobbler: an Audioscrobbler client plugin for Quod Libet.
 # version 0.11
 # (C) 2005-2016 by Joshua Kwan <joshk@triplehelix.org>,
@@ -9,19 +8,17 @@
 #                  Nick Boultbee <nick.boultbee@gmail.com>
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License version 2 as
-# published by the Free Software Foundation
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
 
 import os
 import threading
 import time
+from hashlib import md5
+from urllib.parse import urlencode
 
 from gi.repository import Gtk, GLib
-
-try:
-    from hashlib import md5
-except ImportError:
-    from md5 import md5
 
 import quodlibet
 from quodlibet import _
@@ -35,8 +32,8 @@ from quodlibet.qltk.msg import Message
 from quodlibet.qltk import Icons
 from quodlibet.util.dprint import print_d
 from quodlibet.util.picklehelper import pickle_load, pickle_dump, PickleError
-from quodlibet.compat import urlencode
-from quodlibet.util.urllib import urlopen
+from quodlibet.util.urllib import urlopen, UrllibError
+from quodlibet.errorreport import errorhook
 
 
 SERVICES = {
@@ -91,7 +88,7 @@ class QLSubmitQueue(object):
     CLIENT = "qlb"
     CLIENT_VERSION = const.VERSION
     PROTOCOL_VERSION = "1.2"
-    DUMP = os.path.join(quodlibet.get_user_dir(), "scrobbler_cache")
+    DUMP = os.path.join(quodlibet.get_user_dir(), "scrobbler_cache_v2")
 
     # These objects are shared across instances, to allow other plugins to
     # queue scrobbles in future versions of QL
@@ -171,7 +168,7 @@ class QLSubmitQueue(object):
 
     def _check_config(self):
         user = plugin_config.get('username')
-        passw = md5(plugin_config.get('password')).hexdigest()
+        passw = md5(plugin_config.getbytes('password')).hexdigest()
         url = config_get_url()
         if not user or not passw or not url:
             if self.queue and not self.broken:
@@ -240,7 +237,8 @@ class QLSubmitQueue(object):
     def send_handshake(self, show_dialog=False):
         # construct url
         stamp = int(time.time())
-        auth = md5(self.password + str(stamp)).hexdigest()
+        auth = md5(self.password.encode("utf-8") +
+                   str(stamp).encode("utf-8")).hexdigest()
         url = "%s/?hs=true&p=%s&c=%s&v=%s&u=%s&a=%s&t=%d" % (
                     self.base_url, self.PROTOCOL_VERSION, self.CLIENT,
                     self.CLIENT_VERSION, self.username, auth, stamp)
@@ -248,7 +246,7 @@ class QLSubmitQueue(object):
 
         try:
             resp = urlopen(url)
-        except EnvironmentError:
+        except UrllibError:
             if show_dialog:
                 self.quick_dialog(
                     _("Could not contact service '%s'.") %
@@ -263,7 +261,7 @@ class QLSubmitQueue(object):
             return False
 
         # check response
-        lines = resp.read().rstrip().split("\n")
+        lines = resp.read().decode("utf-8", "ignore").rstrip().split("\n")
         status = lines.pop(0)
         print_d("Handshake status: %s" % status)
 
@@ -291,14 +289,14 @@ class QLSubmitQueue(object):
         return False
 
     def _check_submit(self, url, data):
-        data_str = urlencode(data)
+        data_str = urlencode(data).encode("ascii")
         try:
             resp = urlopen(url, data_str)
         except EnvironmentError:
             print_d("Audioscrobbler server not responding, will try later.")
             return False
 
-        resp_save = resp.read()
+        resp_save = resp.read().decode("utf-8", "ignore")
         status = resp_save.rstrip().split("\n")[0]
         print_d("Submission status: %s" % status)
 
@@ -356,7 +354,14 @@ class QLScrobbler(EventPlugin):
     def __init__(self):
         self.__enabled = False
         self.queue = QLSubmitQueue()
-        queue_thread = threading.Thread(None, self.queue.run)
+
+        def queue_run():
+            try:
+                self.queue.run()
+            except Exception:
+                errorhook()
+
+        queue_thread = threading.Thread(None, queue_run)
         queue_thread.setDaemon(True)
         queue_thread.start()
 
@@ -565,7 +570,7 @@ class QLScrobbler(EventPlugin):
         entry = ValidatingEntry(Query.validator)
         entry.set_text(plugin_config.get('exclude'))
         entry.set_tooltip_text(
-                _("Songs matching this filter will not be submitted."))
+                _("Songs matching this filter will not be submitted"))
         entry.connect('changed', changed, 'exclude')
         table.attach(entry, 1, 2, row, row + 1)
         labels[row].set_mnemonic_widget(entry)

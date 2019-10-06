@@ -1,22 +1,28 @@
-# -*- coding: utf-8 -*-
 # Copyright 2004-2006 Joe Wreschnig, Michael Urman, Iñigo Serna
 #           2012 Christoph Reiter
 #      2013,2017 Nick Boultbee
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License version 2 as
-# published by the Free Software Foundation
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
 
 from gi.repository import Gtk
 
 from quodlibet import _
 from quodlibet import app
 from quodlibet import qltk
+from quodlibet.util import is_windows
 from quodlibet.qltk import Icons
 from quodlibet.pattern import Pattern
 from quodlibet.qltk.entry import UndoEntry
-from quodlibet.util import gdecode
 from .util import pconfig
+
+
+def supports_scrolling():
+    """If our tray icon implementation supports scrolling"""
+
+    return not is_windows()
 
 
 class Preferences(Gtk.VBox):
@@ -51,8 +57,10 @@ class Preferences(Gtk.VBox):
         group.set_active(modifier_swap)
         scrollwheel_box.pack_start(group, False, True, 0)
 
-        self.pack_start(qltk.Frame(_("Scroll _Wheel"), child=scrollwheel_box),
-                        True, True, 0)
+        if supports_scrolling():
+            self.pack_start(
+                qltk.Frame(_("Scroll _Wheel"), child=scrollwheel_box),
+                True, True, 0)
 
         box = Gtk.VBox(spacing=6)
 
@@ -92,7 +100,7 @@ class Preferences(Gtk.VBox):
             child.show_all()
 
     def __changed_entry(self, entry, label, frame):
-        text = gdecode(entry.get_text())
+        text = entry.get_text()
 
         if app.player.info is None:
             text = _("Not playing")

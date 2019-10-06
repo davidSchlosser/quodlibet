@@ -1,13 +1,12 @@
-# -*- coding: utf-8 -*-
 # Copyright 2005 Joe Wreschnig
-#    2012 - 2017 Nick Boultbee
+#    2012 - 2018 Nick Boultbee
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License version 2 as
-# published by the Free Software Foundation
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
 
 import os
-from tempfile import NamedTemporaryFile
 
 from gi.repository import Gtk, GLib, Pango, Gdk
 
@@ -19,7 +18,6 @@ from quodlibet.browsers import Browser
 from quodlibet.browsers._base import DisplayPatternMixin
 from quodlibet.browsers.playlists.prefs import Preferences, \
     DEFAULT_PATTERN_TEXT
-from quodlibet.compat import listfilter
 from quodlibet.formats import AudioFile
 from quodlibet.plugins.playlist import PLAYLIST_HANDLER
 from quodlibet.qltk.completion import LibraryTagCompletion
@@ -32,13 +30,15 @@ from quodlibet.qltk.views import RCMHintedTreeView
 from quodlibet.qltk.x import ScrolledWindow, Align, MenuItem, SymbolicIconImage
 from quodlibet.qltk import Icons
 from quodlibet.qltk.chooser import choose_files, create_chooser_filter
-from quodlibet.query import Query
+from quodlibet.qltk.information import Information
+from quodlibet.qltk.properties import SongProperties
 from quodlibet.util import connect_obj
 from quodlibet.util.dprint import print_d, print_w
 from quodlibet.util.collection import FileBackedPlaylist
 from quodlibet.util.urllib import urlopen
 
-from .util import parse_m3u, parse_pls, PLAYLISTS, ConfirmRemovePlaylistDialog
+from .util import parse_m3u, parse_pls, PLAYLISTS,\
+    ConfirmRemovePlaylistDialog, _name_for
 
 DND_QL, DND_URI_LIST, DND_MOZ_URL = range(3)
 
@@ -180,10 +180,13 @@ class PlaylistsBrowser(Browser, DisplayPatternMixin):
         self._sb_box = self.__create_searchbar(library)
         self._main_box = self.__create_box()
         self.show_all()
-        self._query = None
 
         for child in self.get_children():
             child.show_all()
+
+    @property
+    def _query(self):
+        return self._sb_box.get_query(SongList.star)
 
     def __destroy(self, *args):
         del self._sb_box
@@ -210,19 +213,31 @@ class PlaylistsBrowser(Browser, DisplayPatternMixin):
         self.pack_start(swin, True, True, 0)
 
     def __configure_buttons(self, library):
-        new_pl = qltk.Button(_("_New"), Icons.DOCUMENT_NEW, Gtk.IconSize.MENU)
-        new_pl.connect('clicked', self.__new_playlist)
-        import_pl = qltk.Button(_("_Import"), Icons.LIST_ADD,
+        new_pl = qltk.Button(None, Icons.DOCUMENT_NEW, Gtk.IconSize.MENU)
+        new_pl.set_tooltip_text(_("New"))
+        new_pl.connect('clicked', self.__new_playlist, library)
+        import_pl = qltk.Button(None, Icons.LIST_ADD,
                                 Gtk.IconSize.MENU)
+        import_pl.set_tooltip_text(_("Import"))
         import_pl.connect('clicked', self.__import, library)
-        hb = Gtk.HBox(spacing=6)
-        hb.set_homogeneous(False)
-        hb.pack_start(new_pl, True, True, 0)
-        hb.pack_start(import_pl, True, True, 0)
-        hb2 = Gtk.HBox(spacing=0)
-        hb2.pack_start(hb, True, True, 0)
-        hb2.pack_start(PreferencesButton(self), False, False, 6)
-        self.pack_start(Align(hb2, left=3, bottom=3), False, False, 0)
+
+        fb = Gtk.FlowBox()
+        fb.set_selection_mode(Gtk.SelectionMode.NONE)
+        fb.set_homogeneous(True)
+        fb.insert(new_pl, 0)
+        fb.insert(import_pl, 1)
+        fb.set_max_children_per_line(2)
+
+        # The pref button is in its own flowbox instead of directly under the
+        # HBox to make it the same height as the other buttons
+        pref = PreferencesButton(self)
+        fb2 = Gtk.FlowBox()
+        fb2.insert(pref, 0)
+
+        hb = Gtk.HBox()
+        hb.pack_start(fb, True, True, 0)
+        hb.pack_start(fb2, False, False, 0)
+        self.pack_start(hb, False, False, 0)
 
     def __create_playlists_view(self, render):
         view = RCMHintedTreeView()
@@ -258,9 +273,6 @@ class PlaylistsBrowser(Browser, DisplayPatternMixin):
         view.connect('row-activated', lambda *x: self.songs_activated())
         view.connect('popup-menu', self.__popup_menu, library)
         view.get_selection().connect('changed', self.activate)
-        model = view.get_model()
-        s = model.connect('row-changed', self.__check_current)
-        connect_obj(self, 'destroy', model.disconnect, s)
         self.connect('key-press-event', self.__key_pressed)
 
     def __create_cell_renderer(self):
@@ -299,13 +311,22 @@ class PlaylistsBrowser(Browser, DisplayPatternMixin):
             if iter:
                 self._start_rename(model.get_path(iter))
             return True
+        elif qltk.is_accel(event, "<Primary>I"):
+            songs = self._get_playlist_songs()
+            if songs:
+                window = Information(self.library.librarian, songs, self)
+                window.show()
+            return True
+        elif qltk.is_accel(event, "<Primary>Return", "<Primary>KP_Enter"):
+            qltk.enqueue(self._get_playlist_songs())
+            return True
+        elif qltk.is_accel(event, "<alt>Return"):
+            songs = self._get_playlist_songs()
+            if songs:
+                window = SongProperties(self.library.librarian, songs, self)
+                window.show()
+            return True
         return False
-
-    def __check_current(self, model, path, iter):
-        model, citer = self.__selected_playlists()
-        if citer and model.get_path(citer) == path:
-            songlist = qltk.get_top_parent(self).songlist
-            self.activate(resort=not songlist.is_sorted())
 
     def __drag_motion(self, view, ctx, x, y, time):
         targets = [t.name() for t in ctx.list_targets()]
@@ -357,13 +378,21 @@ class PlaylistsBrowser(Browser, DisplayPatternMixin):
         playlist.extend([row[0] for row in smodel])
         playlist.inhibit = False
 
+    def __get_name_of_current_selected_playlist(self):
+        model, iter = self.__selected_playlists()
+        if not iter:
+            return None
+        path = model.get_path(iter)
+        playlist = model[path][0]
+        return playlist
+
     def __drag_data_received(self, view, ctx, x, y, sel, tid, etime, library):
         # TreeModelSort doesn't support GtkTreeDragDestDrop.
         view.emit_stop_by_name('drag-data-received')
         model = view.get_model()
         if tid == DND_QL:
             filenames = qltk.selection_get_filenames(sel)
-            songs = listfilter(None, [library.get(f) for f in filenames])
+            songs = list(filter(None, [library.get(f) for f in filenames]))
             if not songs:
                 Gtk.drag_finish(ctx, False, False, etime)
                 return
@@ -378,6 +407,12 @@ class PlaylistsBrowser(Browser, DisplayPatternMixin):
                 playlist.extend(songs)
             self.changed(playlist)
             Gtk.drag_finish(ctx, True, False, etime)
+            # Cause a refresh to the dragged-to playlist if it is selected
+            # so that the dragged (duplicate) track(s) appears
+            if playlist is self.__get_name_of_current_selected_playlist():
+                model, plist_iter = self.__selected_playlists()
+                songlist = qltk.get_top_parent(self).songlist
+                self.activate(resort=not songlist.is_sorted())
         else:
             if tid == DND_URI_LIST:
                 uri = sel.get_uris()[0]
@@ -388,22 +423,17 @@ class PlaylistsBrowser(Browser, DisplayPatternMixin):
             else:
                 Gtk.drag_finish(ctx, False, False, etime)
                 return
-            name = name or os.path.basename(uri) or _("New Playlist")
-            uri = uri.encode('utf-8')
+            name = _name_for(name or os.path.basename(uri))
             try:
                 sock = urlopen(uri)
-                f = NamedTemporaryFile()
-                f.write(sock.read())
-                f.flush()
                 if uri.lower().endswith('.pls'):
-                    playlist = parse_pls(f.name, library=library)
-                elif uri.lower().endswith('.m3u'):
-                    playlist = parse_m3u(f.name, library=library)
+                    playlist = parse_pls(sock, name, library=library)
+                elif (uri.lower().endswith('.m3u') or
+                        uri.lower().endswith('.m3u8')):
+                    playlist = parse_m3u(sock, name, library=library)
                 else:
                     raise IOError
-                library.add_filename(playlist)
-                if name:
-                    playlist.rename(name)
+                library.add(playlist.songs)
                 self.changed(playlist)
                 Gtk.drag_finish(ctx, True, False, etime)
             except IOError:
@@ -411,7 +441,7 @@ class PlaylistsBrowser(Browser, DisplayPatternMixin):
                 qltk.ErrorMessage(
                     qltk.get_top_parent(self),
                     _("Unable to import playlist"),
-                    _("Quod Libet can only import playlists in the M3U "
+                    _("Quod Libet can only import playlists in the M3U/M3U8 "
                       "and PLS formats.")).run()
 
     def _drag_data_get(self, view, ctx, sel, tid, etime):
@@ -487,12 +517,9 @@ class PlaylistsBrowser(Browser, DisplayPatternMixin):
 
     def activate(self, widget=None, resort=True):
         songs = self._get_playlist_songs()
-
-        text = self.get_filter_text()
-        # TODO: remove static dependency on Query
-        if Query.is_parsable(text):
-            self._query = Query(text, SongList.star)
-            songs = self._query.filter(songs)
+        query = self._sb_box.get_query(SongList.star)
+        if query and query.is_parsable:
+            songs = query.filter(songs)
         GLib.idle_add(self.songs_selected, songs, resort)
 
     @classmethod
@@ -541,8 +568,8 @@ class PlaylistsBrowser(Browser, DisplayPatternMixin):
         text = self.get_filter_text()
         config.set("browsers", "query_text", text)
 
-    def __new_playlist(self, activator):
-        playlist = FileBackedPlaylist.new(PLAYLISTS)
+    def __new_playlist(self, activator, library):
+        playlist = FileBackedPlaylist.new(PLAYLISTS, library=library)
         self.model.append(row=[playlist])
         self._select_playlist(playlist, scroll=True)
 
@@ -572,17 +599,27 @@ class PlaylistsBrowser(Browser, DisplayPatternMixin):
             self._select_playlist(playlist, scroll=True)
 
     def __import(self, activator, library):
-        cf = create_chooser_filter(_("Playlists"), ["*.pls", "*.m3u"])
+        formats = ["*.pls", "*.m3u", "*.m3u8"]
+        cf = create_chooser_filter(_("Playlists"), formats)
         fns = choose_files(self, _("Import Playlist"), _("_Import"), cf)
+        self._import_playlists(fns, library)
+
+    def _import_playlists(self, fns, library):
+        added = 0
         for filename in fns:
-            if filename.endswith(".m3u"):
-                playlist = parse_m3u(filename, library=library)
-            elif filename.endswith(".pls"):
-                playlist = parse_pls(filename, library=library)
-            else:
-                continue
+            name = _name_for(filename)
+            with open(filename, "rb") as f:
+                if filename.endswith(".m3u") or filename.endswith(".m3u8"):
+                    playlist = parse_m3u(f, name, library=library)
+                elif filename.endswith(".pls"):
+                    playlist = parse_pls(f, name, library=library)
+                else:
+                    print_w("Unsupported playlist type for '%s'" % filename)
+                    continue
             self.changed(playlist)
             library.add(playlist)
+            added += 1
+        return added
 
     def restore(self):
         try:
@@ -610,7 +647,8 @@ class PlaylistsBrowser(Browser, DisplayPatternMixin):
             playlist = model[iter][0]
             playlist[:] = songs
         elif songs:
-            playlist = FileBackedPlaylist.from_songs(PLAYLISTS, songs)
+            playlist = FileBackedPlaylist.from_songs(PLAYLISTS, songs,
+                                                     self.library)
             GLib.idle_add(self._select_playlist, playlist)
         if playlist:
             self.changed(playlist, refresh=False)

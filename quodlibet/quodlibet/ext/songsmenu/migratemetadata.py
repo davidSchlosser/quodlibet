@@ -1,9 +1,10 @@
-# -*- coding: utf-8 -*-
 # Copyright 2013-2015 Ryan "ZDBioHazard" Turner <zdbiohazard2@gmail.com>
+#                2017 Nick Boultbee
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License version 2 as
-# published by the Free Software Foundation
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
 
 import math
 
@@ -22,6 +23,12 @@ from quodlibet.qltk.window import Dialog
 # I know it's kinda ugly, but it's a lot more convenient
 # for the user than writing and parsing temporary files.
 songinfo = {}
+
+
+def get_number(song, tag):
+    """Gets a discnumber-like tag that may be '2' of '1/2'"""
+    value = song.get(tag, '0').split('/')[0]
+    return int(value)
 
 
 class MetadataCopier(SongsMenuPlugin):
@@ -113,8 +120,8 @@ class MetadataCopier(SongsMenuPlugin):
             # This tid will be what we index all of our tracks by,
             # so they will be easier to find when pasting metadata.
             if index.get_active() is True:
-                tid = "%d-%d" % (int(song.get("discnumber", 0)),
-                                 int(song.get("tracknumber", 0).split("/")[0]))
+                tid = "%d-%d" % (get_number(song, 'discnumber'),
+                                 get_number(song, 'tracknumber'))
 
             # Erase track info if copying.
             if response == Gtk.ResponseType.OK:

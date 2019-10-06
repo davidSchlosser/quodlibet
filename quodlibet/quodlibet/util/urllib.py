@@ -1,25 +1,29 @@
-# -*- coding: utf-8 -*-
 # Copyright 2016 Christoph Reiter
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License version 2 as
-# published by the Free Software Foundation
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
 
 from __future__ import absolute_import
 
-from quodlibet.compat import PY2
 from .misc import get_ca_file
 
-if PY2:
-    import urllib2 as request_module
-else:
-    from urllib import request as request_module
+from urllib import request as request_module
+from http.client import HTTPException
 
 
 Request = request_module.Request
 
-urlopen = request_module.urlopen
-# For general error handling use EnvironmentError
+UrllibError = EnvironmentError
+
+
+def urlopen(*args, **kwargs):
+    try:
+        return request_module.urlopen(*args, **kwargs)
+    except HTTPException as e:
+        # https://bugs.python.org/issue8823
+        raise EnvironmentError(e)
 
 
 def install_urllib2_ca_file():

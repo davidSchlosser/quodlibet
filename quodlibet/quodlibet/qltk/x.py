@@ -1,21 +1,22 @@
-# -*- coding: utf-8 -*-
 # Copyright 2005 Joe Wreschnig, Michael Urman
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License version 2 as
-# published by the Free Software Foundation
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
 
 """
 Things that are more or less direct wrappers around GTK widgets to
 ease constructors.
 """
 
+from urllib.request import urlopen
+
 from gi.repository import Gtk, GObject, GLib, Gio, GdkPixbuf
 
 from quodlibet.util.dprint import print_d
 
 from quodlibet import util
-from quodlibet.compat import urlopen, xrange
 from quodlibet.util import print_w
 from quodlibet.util.thread import call_async, Cancellable
 from quodlibet.qltk import add_css, is_accel, gtk_version
@@ -149,7 +150,7 @@ class Notebook(Gtk.Notebook):
 
     def __key_pressed(self, widget, event):
         # alt+X switches to page X
-        for i in xrange(self.get_n_pages()):
+        for i in range(self.get_n_pages()):
             if is_accel(event, "<alt>%d" % (i + 1)):
                 self.set_current_page(i)
                 return True
@@ -288,7 +289,7 @@ def MenuItem(label, icon_name=None):
 
 def _Button(type_, label, icon_name, size):
     if icon_name is None:
-        return Gtk.Button.new_with_mnemonic(label)
+        return type_.new_with_mnemonic(label)
 
     align = Align(halign=Gtk.Align.CENTER, valign=Gtk.Align.CENTER)
     hbox = Gtk.HBox(spacing=2)
@@ -452,3 +453,64 @@ class WebImage(Gtk.Image):
             self.set_from_icon_name("image-missing", Gtk.IconSize.BUTTON)
         else:
             self.set_from_pixbuf(pixbuf)
+
+
+class HighlightToggleButton(Gtk.ToggleButton):
+    """A ToggleButton which changes the foreground color when active"""
+
+    def __init__(self, *args, **kwargs):
+        super(HighlightToggleButton, self).__init__(*args, **kwargs)
+        self._provider = None
+        self._color = ""
+        self._dummy = Gtk.ToggleButton()
+
+    def _update_provider(self):
+        # not active, reset everything
+        if not self.get_active():
+            if self._provider is not None:
+                style_context = self.get_style_context()
+                style_context.remove_provider(self._provider)
+                self._provider = None
+                self._color = ""
+            return
+
+        # in case the foreground changes between normal and checked
+        # state assume that the theme does some highlighting and stop.
+        style_context = self._dummy.get_style_context()
+        style_context.save()
+        style_context.set_state(Gtk.StateFlags.NORMAL)
+        a = style_context.get_color(style_context.get_state())
+        style_context.set_state(Gtk.StateFlags.CHECKED)
+        b = style_context.get_color(style_context.get_state())
+        same_color = (a.to_string() == b.to_string())
+        style_context.restore()
+        if not same_color:
+            style_context = self.get_style_context()
+            if self._provider is not None:
+                style_context.remove_provider(self._provider)
+                self._provider = None
+                self._color = ""
+            return
+
+        # force a color
+        style_context = self.get_style_context()
+        style_context.save()
+        style_context.set_state(Gtk.StateFlags.VISITED)
+        color = style_context.get_color(style_context.get_state())
+        style_context.restore()
+        if self._color != color.to_string():
+            self._color = color.to_string()
+            style_context = self.get_style_context()
+            if self._provider is not None:
+                style_context.remove_provider(self._provider)
+
+            provider = Gtk.CssProvider()
+            provider.load_from_data(
+                (u"* {color: %s}" % self._color).encode("ascii"))
+            style_context.add_provider(
+                provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
+            self._provider = provider
+
+    def do_draw(self, context):
+        self._update_provider()
+        return Gtk.ToggleButton.do_draw(self, context)

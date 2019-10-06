@@ -1,14 +1,27 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
+#!/usr/bin/env python3
 # Copyright 2010-2015 Christoph Reiter
 #           2015 Nick Boultbee
 #           2010 Steven Robertson
 #           2007-2008 Joe Wreschnig
 #
-# This software and accompanying documentation, if any, may be freely
-# used, distributed, and/or modified, in any form and for any purpose,
-# as long as this notice is preserved. There is no warranty, either
-# express or implied, for this software.
+# Permission is hereby granted, free of charge, to any person obtaining
+# a copy of this software and associated documentation files (the
+# "Software"), to deal in the Software without restriction, including
+# without limitation the rights to use, copy, modify, merge, publish,
+# distribute, sublicense, and/or sell copies of the Software, and to
+# permit persons to whom the Software is furnished to do so, subject to
+# the following conditions:
+#
+# The above copyright notice and this permission notice shall be included
+# in all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+# EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+# MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+# IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+# CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+# TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+# SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 import os
 import sys
@@ -21,17 +34,16 @@ def exec_module(path):
     """Executes the Python file at `path` and returns it as the module"""
 
     globals_ = {}
-    if sys.version_info[0] == 2:
-        execfile(path, globals_)
-    else:
-        with open(path, encoding="utf-8") as h:
-            exec(h.read(), globals_)
+    with open(path, encoding="utf-8") as h:
+        exec(h.read(), globals_)
     module = types.ModuleType("")
     module.__dict__.update(globals_)
     return module
 
 
 def main():
+    assert sys.version_info[0] == 3, "Quod Libet is Python 3 only now"
+
     # distutils depends on setup.py beeing executed from the same dir.
     # Most of our custom commands work either way, but this makes
     # it work in all cases.
@@ -64,7 +76,7 @@ def main():
         'author': "Joe Wreschnig, Michael Urman, & others",
         'author_email': "quod-libet-development@googlegroups.com",
         'maintainer': "Steven Robertson and Christoph Reiter",
-        'license': "GNU GPL v2",
+        'license': "GPL-2.0-or-later",
         'packages': packages,
         'package_data': {
             "quodlibet": [
@@ -79,7 +91,10 @@ def main():
         ],
         'po_directory': "po",
         'po_package': "quodlibet",
-        'shortcuts': ["data/quodlibet.desktop", "data/exfalso.desktop"],
+        'shortcuts': [
+            "data/io.github.quodlibet.QuodLibet.desktop",
+            "data/io.github.quodlibet.ExFalso.desktop"
+        ],
         'dbus_services': [
             "data/net.sacredchao.QuodLibet.service",
             # https://github.com/quodlibet/quodlibet/issues/1268
@@ -87,15 +102,20 @@ def main():
             # "data/org.mpris.quodlibet.service",
         ],
         'appdata': [
-            "data/quodlibet.appdata.xml",
-            "data/exfalso.appdata.xml",
+            "data/io.github.quodlibet.QuodLibet.appdata.xml",
+            "data/io.github.quodlibet.ExFalso.appdata.xml",
         ],
         'man_pages': [
             "data/quodlibet.1",
             "data/exfalso.1",
             "data/operon.1",
         ],
-        "search_provider": "data/quodlibet-search-provider.ini",
+        "search_provider":
+            "data/io.github.quodlibet.QuodLibet-search-provider.ini",
+        "bash_completions": [
+            ("data/quodlibet.bash", "quodlibet"),
+            ("data/quodlibet.bash", "operon"),
+        ],
         "zsh_completions": [
             ("data/quodlibet.zsh", "_quodlibet"),
         ],

@@ -1,10 +1,10 @@
-# -*- coding: utf-8 -*-
 # Copyright 2006 Joe Wreschnig
-#           2016 Nick Boultbee
+#        2016,18 Nick Boultbee
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License version 2 as
-# published by the Free Software Foundation
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
 
 import time
 
@@ -57,7 +57,7 @@ class Alarm(EventPlugin):
         pass
 
     def _entry_changed(self, entries):
-        self._times = map(ValidatingEntry.get_text, entries)
+        self._times = [ValidatingEntry.get_text(e) for e in entries]
         config.set("plugins", self._pref_name, " ".join(self._times))
 
     def _ready(self):

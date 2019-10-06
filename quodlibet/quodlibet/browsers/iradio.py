@@ -1,19 +1,24 @@
-# -*- coding: utf-8 -*-
 # Copyright 2011 Joe Wreschnig, Christoph Reiter
-#           2016 Nick Boultbee
+#      2013-2019 Nick Boultbee
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License version 2 as
-# published by the Free Software Foundation
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
 
 import os
 import sys
 import bz2
 import itertools
+from functools import reduce
+from http.client import HTTPException
+from urllib.request import urlopen
 
+import re
 from gi.repository import Gtk, GLib, Pango
+from senf import text2fsn
 
-from quodlibet.util.dprint import print_d
+from quodlibet.util.dprint import print_d, print_e
 
 import quodlibet
 from quodlibet import _
@@ -26,7 +31,6 @@ from quodlibet.formats.remote import RemoteFile
 from quodlibet.formats._audio import TAG_TO_SORT, MIGRATE, AudioFile
 from quodlibet.library import SongLibrary
 from quodlibet.query import Query
-from quodlibet.compat import reduce, urlopen
 from quodlibet.qltk.getstring import GetStringDialog
 from quodlibet.qltk.songsmenu import SongsMenu
 from quodlibet.qltk.notif import Task
@@ -43,11 +47,10 @@ from quodlibet.qltk.completion import LibraryTagCompletion
 from quodlibet.qltk.x import MenuItem, Align, ScrolledWindow
 from quodlibet.qltk.x import SymbolicIconImage
 from quodlibet.qltk.menubutton import MenuButton
-from quodlibet.compat import text_type, iteritems, iterkeys
 
 
 STATION_LIST_URL = \
-    "https://bitbucket.org/lazka/quodlibet/downloads/radiolist.bz2"
+    "https://quodlibet.github.io/radio/radiolist.bz2"
 STATIONS_FAV = os.path.join(quodlibet.get_user_dir(), "stations")
 STATIONS_ALL = os.path.join(quodlibet.get_user_dir(), "stations_all")
 
@@ -133,7 +136,8 @@ class IRFile(RemoteFile):
 def ParsePLS(file):
     data = {}
 
-    lines = file.readlines()
+    lines = file.read().decode('utf-8', 'replace').splitlines()
+
     if not lines or "[playlist]" not in lines.pop(0):
         return []
 
@@ -147,15 +151,15 @@ def ParsePLS(file):
             if head.startswith("length") and val == "-1":
                 continue
             else:
-                data[head] = val.decode('utf-8', 'replace')
+                data[head] = val
 
     count = 1
     files = []
     warnings = []
     while True:
         if "file%d" % count in data:
-            filename = data["file%d" % count].encode('utf-8', 'replace')
-            if filename.lower()[-4:] in [".pls", ".m3u"]:
+            filename = text2fsn(data["file%d" % count])
+            if filename.lower()[-4:] in [".pls", ".m3u", "m3u8"]:
                 warnings.append(filename)
             else:
                 irf = IRFile(filename)
@@ -188,7 +192,8 @@ def ParsePLS(file):
 def ParseM3U(fileobj):
     files = []
     pending_title = None
-    for line in fileobj:
+    lines = fileobj.read().decode('utf-8', 'replace').splitlines()
+    for line in lines:
         line = line.strip()
         if line.startswith("#EXTINF:"):
             try:
@@ -196,9 +201,9 @@ def ParseM3U(fileobj):
             except IndexError:
                 pending_title = None
         elif line.startswith("http"):
-            irf = IRFile(line)
+            irf = IRFile(text2fsn(line))
             if pending_title:
-                irf["title"] = pending_title.decode('utf-8', 'replace')
+                irf["title"] = pending_title
                 pending_title = None
             files.append(irf)
     return files
@@ -210,18 +215,24 @@ def add_station(uri):
 
     irfs = []
 
-    if uri.lower().endswith(".pls") or uri.lower().endswith(".m3u"):
+    if (uri.lower().endswith(".pls")
+            or uri.lower().endswith(".m3u")
+            or uri.lower().endswith(".m3u8")):
+        if not re.match('^([^/:]+)://', uri):
+            # Assume HTTP if no protocol given. See #2731
+            uri = 'http://' + uri
+            print_d("Assuming http: %s" % uri)
         try:
             sock = urlopen(uri)
         except EnvironmentError as err:
-            err = text_type(err)
-            print_d("Got %s from %s" % (uri, err))
+            err = "%s\n\nURL: %s" % (str(err), uri)
+            print_d("Got %s from %s" % (err, uri))
             ErrorMessage(None, _("Unable to add station"), escape(err)).run()
             return None
 
         if uri.lower().endswith(".pls"):
             irfs = ParsePLS(sock)
-        elif uri.lower().endswith(".m3u"):
+        elif uri.lower().endswith(".m3u") or uri.lower().endswith(".m3u8"):
             irfs = ParseM3U(sock)
 
         sock.close()
@@ -246,10 +257,10 @@ def download_taglist(callback, cofuncid, step=1024 * 10):
 
         try:
             response = urlopen(STATION_LIST_URL)
-        except EnvironmentError:
+        except (EnvironmentError, HTTPException) as e:
+            print_e("Failed fetching from %s" % STATION_LIST_URL, e)
             GLib.idle_add(callback, None)
             return
-
         try:
             size = int(response.info().get("content-length", 0))
         except ValueError:
@@ -257,8 +268,8 @@ def download_taglist(callback, cofuncid, step=1024 * 10):
 
         decomp = bz2.BZ2Decompressor()
 
-        data = ""
-        temp = ""
+        data = b""
+        temp = b""
         read = 0
         while temp or not data:
             read += len(temp)
@@ -301,17 +312,20 @@ def parse_taglist(data):
     stations = []
     station = None
 
-    for l in data.split("\n"):
-        key = l.split("=")[0]
-        value = l.split("=", 1)[1]
+    for l in data.split(b"\n"):
+        if not l:
+            continue
+        key = l.split(b"=")[0]
+        value = l.split(b"=", 1)[1]
+        key = decode(key)
+        value = decode(value)
         if key == "uri":
             if station:
                 stations.append(station)
             station = IRFile(value)
             continue
 
-        value = decode(value)
-        san = sanitize_tags({key: value}, stream=True).items()
+        san = list(sanitize_tags({key: value}, stream=True).items())
         if not san:
             continue
 
@@ -320,8 +334,10 @@ def parse_taglist(data):
             key = "~#listenerpeak"
             value = int(value)
 
-        if isinstance(value, bytes):
-            value = value.decode("utf-8")
+        if not station:
+            continue
+
+        if isinstance(value, str):
             if value not in station.list(key):
                 station.add(key, value)
         else:
@@ -359,8 +375,8 @@ class GenreFilter(object):
             "|(electr,house,techno,trance,/trip.?hop/,&(drum,n,bass),chill,"
             "dnb,minimal,/down(beat|tempo)/,&(dub,step))"),
         "rap": (_("Hip Hop / Rap"), "|(&(hip,hop),rap)"),
-        "oldies": (_("Oldies"), "|(/[2-9]0\S?s/,oldies)"),
-        "r&b": (_("R&B"), "/r(\&|n)b/"),
+        "oldies": (_("Oldies"), r"|(/[2-9]0\S?s/,oldies)"),
+        "r&b": (_("R&B"), r"/r(\&|n)b/"),
         "japanese": (_("Japanese"), "|(anime,jpop,japan,jrock)"),
         "indian": (_("Indian"), "|(bollywood,hindi,indian,bhangra)"),
         "religious": (
@@ -368,7 +384,7 @@ class GenreFilter(object):
             "|(religious,christian,bible,gospel,spiritual,islam)"),
         "charts": (_("Charts"), "|(charts,hits,top)"),
         "turkish": (_("Turkish"), "|(turkish,turkce)"),
-        "reggae": (_("Reggae / Dancehall"), "|(/reggae([^\w]|$)/,dancehall)"),
+        "reggae": (_("Reggae / Dancehall"), r"|(/reggae([^\w]|$)/,dancehall)"),
         "latin": (_("Latin"), "|(latin,salsa)"),
         "college": (_("College Radio"), "|(college,campus)"),
         "talk_news": (_("Talk / News"), "|(news,talk)"),
@@ -507,6 +523,13 @@ class InternetRadio(Browser, util.InstanceTracker):
         klass.__librarian = None
 
         klass.filters = None
+
+    def finalize(self, restored):
+        if not restored:
+            # Select "All Stations" by default
+            def sel_all(row):
+                return row[self.TYPE] == self.TYPE_ALL
+            self.view.select_by_func(sel_all, one=True)
 
     def __inhibit(self):
         self.view.get_selection().handler_block(self.__changed_sig)
@@ -682,7 +705,7 @@ class InternetRadio(Browser, util.InstanceTracker):
 
         # keep at most 2 URLs for each group
         stations = []
-        for key, sub in iteritems(groups):
+        for key, sub in groups.items():
             sub.sort(key=lambda s: s.get("~#listenerpeak", 0), reverse=True)
             stations.extend(sub[:2])
 
@@ -690,7 +713,7 @@ class InternetRadio(Browser, util.InstanceTracker):
         all_ = [self.filters.query(k) for k in self.filters.keys()]
         assert all_
         anycat_filter = reduce(lambda x, y: x | y, all_)
-        stations = filter(anycat_filter.search, stations)
+        stations = list(filter(anycat_filter.search, stations))
 
         # remove listenerpeak
         for s in stations:
@@ -699,11 +722,11 @@ class InternetRadio(Browser, util.InstanceTracker):
         # update the libraries
         stations = dict(((s.key, s) for s in stations))
         # don't add ones that are in the fav list
-        for fav in iterkeys(self.__fav_stations):
+        for fav in self.__fav_stations.keys():
             stations.pop(fav, None)
 
         # separate
-        o, n = set(iterkeys(self.__stations)), set(stations)
+        o, n = set(self.__stations.keys()), set(stations)
         to_add, to_change, to_remove = n - o, o & n, o - n
         del o, n
 
@@ -714,7 +737,7 @@ class InternetRadio(Browser, util.InstanceTracker):
             # clear everything except stats
             AudioFile.reload(old)
             # add new metadata except stats
-            for k in (x for x in iterkeys(new) if x not in MIGRATE):
+            for k in (x for x in new.keys() if x not in MIGRATE):
                 old[k] = new[k]
 
         to_add = [stations.pop(k) for k in to_add]
@@ -744,7 +767,7 @@ class InternetRadio(Browser, util.InstanceTracker):
         return libs
 
     def __get_selection_filter(self):
-        """Retuns a filter object for the current selection or None
+        """Returns a filter object for the current selection or None
         if nothing should be filtered"""
 
         selection = self.view.get_selection()
@@ -775,6 +798,9 @@ class InternetRadio(Browser, util.InstanceTracker):
                 break
 
         return filter_
+
+    def unfilter(self):
+        self.filter_text("")
 
     def __add_fav(self, songs):
         songs = [s for s in songs if s in self.__stations]
@@ -836,13 +862,13 @@ class InternetRadio(Browser, util.InstanceTracker):
 
         items.append(iradio_items)
         menu = SongsMenu(self.__librarian, songs, playlists=False, remove=True,
-                         queue=False, devices=False, items=items)
+                         queue=False, items=items)
         return menu
 
     def restore(self):
         text = config.gettext("browsers", "query_text")
         self.__searchbar.set_text(text)
-        if Query.is_parsable(text):
+        if Query(text).is_parsable:
             self.__filter_changed(self.__searchbar, text, restore=True)
 
         keys = config.get("browsers", "radio").splitlines()
@@ -875,7 +901,7 @@ class InternetRadio(Browser, util.InstanceTracker):
 
     def filter_text(self, text):
         self.__searchbar.set_text(text)
-        if Query.is_parsable(text):
+        if Query(text).is_parsable:
             self.__filter_changed(self.__searchbar, text)
             self.activate()
 

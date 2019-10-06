@@ -1,10 +1,10 @@
-# -*- coding: utf-8 -*-
 # Copyright 2012,2014 Christoph Reiter
 #           2014,2017 Nick Boultbee
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License version 2 as
-# published by the Free Software Foundation
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
 
 import sys
 import os
@@ -118,6 +118,10 @@ class Window(Gtk.Window):
         super(Window, self).__init__(*args, **kwargs)
         type(self).windows.append(self)
         if dialog:
+            # Modal is the only way to center the window on the parent
+            # with wayland atm
+            if is_wayland():
+                self.set_modal(True)
             self.set_type_hint(Gdk.WindowTypeHint.DIALOG)
         self.set_destroy_with_parent(True)
         self.set_position(Gtk.WindowPosition.CENTER_ON_PARENT)

@@ -1,9 +1,10 @@
-# -*- coding: utf-8 -*-
 # Copyright 2013 Simonas Kazlauskas
+#           2018 Nick Boultbee
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License version 2 as
-# published by the Free Software Foundation
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
 
 from os import path
 from gi.repository import Soup
@@ -39,8 +40,15 @@ class MusicBrainzCover(CoverSourcePlugin, HTTPDownloadMixin):
     def mbid(self):
         return self.song.get('musicbrainz_albumid', None)
 
+    def search(self):
+        url = self.url
+        if not url:
+            return self.fail('No Musicbrainz tag found')
+        self.emit('search-complete',
+                  [{'cover': url, 'dimensions': '(original)'}])
+
     @property
-    def url(self, front=True):
+    def url(self):
         if not self.mbid:
             return None
         mbid = Soup.URI.encode(self.mbid, None)

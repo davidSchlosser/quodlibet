@@ -1,13 +1,12 @@
-# -*- coding: utf-8 -*-
 # Copyright 2016 Nick Boultbee
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License version 2 as
-# published by the Free Software Foundation
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
 
 
 """Various `plugin_handles` helpers"""
-from quodlibet.formats._id3 import ID3File
 
 
 def is_a_file(song):
@@ -32,10 +31,6 @@ def has_writable_image(song):
 
 def has_bookmark(song):
     return bool(song.bookmarks)
-
-
-def is_an_id3(song):
-    return isinstance(song, ID3File)
 
 
 # Higher order functions

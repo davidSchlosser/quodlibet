@@ -1,7 +1,7 @@
-# -*- coding: utf-8 -*-
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License version 2 as
-# published by the Free Software Foundation
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
 
 import json
 import os
@@ -37,8 +37,8 @@ class TJsonData(TestCase):
     def test_JSONObject(self):
         blah = JSONObject('blah')
         self.failUnlessEqual(blah.name, 'blah')
-        self.failUnlessEqual({"name": "blah"}, blah.data)
-        self.failUnlessEqual("{\"name\": \"blah\"}", blah.json)
+        self.failUnlessEqual(blah.data, {"name": "blah"})
+        self.failUnlessEqual(blah.json, "{\"name\": \"blah\"}")
 
     def test_field(self):
         blah = self.WibbleData('blah')
@@ -58,8 +58,8 @@ class TJsonData(TestCase):
         blah = self.WibbleData('blah')
         self.failUnlessEqual(blah.name, 'blah')
         exp = {"name": "blah", "pattern": None, "wibble": False}
-        self.failUnlessEqual(exp, dict(blah.data))
-        self.failUnlessEqual(exp, json.loads(blah.json))
+        self.failUnlessEqual(dict(blah.data), exp)
+        self.failUnlessEqual(json.loads(blah.json), exp)
 
     def test_from_invalid_json(self):
         # Invalid JSON

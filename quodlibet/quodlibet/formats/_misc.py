@@ -1,9 +1,9 @@
-# -*- coding: utf-8 -*-
 # Copyright 2016 Christoph Reiter
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License version 2 as
-# published by the Free Software Foundation
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
 
 import os
 import sys
@@ -45,8 +45,7 @@ def translate_errors():
         yield
     except AudioFileError:
         raise
-    except (mutagen.MutagenError, IOError) as e:
-        # old mutagen raised IOError
+    except mutagen.MutagenError as e:
         reraise(AudioFileError, e)
     except Exception as e:
         reraise(MutagenBug, e)
@@ -63,10 +62,7 @@ def init():
     MinVersions.MUTAGEN.check(mutagen.version)
 
     base = util.get_module_dir()
-    load_pyc = util.is_windows() or util.is_osx()
-    formats = load_dir_modules(base,
-                               package=__package__,
-                               load_compiled=load_pyc)
+    formats = load_dir_modules(base, package=__package__)
 
     module_names = []
     for format in formats:

@@ -43,15 +43,20 @@ Again, the context menu contains more options, like rating and tag editing
 for the current song.
 
 There is also an entry called *Edit Display...* which lets you change
-everything that is shown in that area, like the file format, bitrate, font
-size etc. The syntax is the same as for :ref:`renaming files <RenamingFiles>`.
+the :ref:`tag pattern<TagPatterns>` used for display.
+This typically includes the people, title, album and maybe file format,
+bitrate etc (including :ref:`internal tags<InternalTags>`).
+This also allows :ref:`text markup<TextMarkup>` for styling of your display area.
 
 
 3. The Song List & Browser
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 As the name suggests, the song list is a list of matching songs presented
-by the current browser. The browser consists of a way to filter your
+by the current browser.  Double-clicking a song in the song list will start
+playing it immediately.
+
+The browser consists of a way to filter your
 library (songs), e.g. a simple search or by a list of albums. In the image
 above, no browser is active so only the current song list is shown. You can
 change the active browser by selecting one in the *View* menu.
@@ -85,6 +90,7 @@ selected.
 It also shows progress information of background operations like importing
 music.
 
+.. _Queue_Overview:
 
 The Queue
 ---------
@@ -103,6 +109,9 @@ playback will continue in the main song list where it left off.
 
 To add songs to the queue, right-click and *Add to Queue*, use the shortcut
 ``CTRL+Return`` or select songs in a different browser window.
+
+For more information, see the :ref:`Queue Guide <Queue>`.
+
 
 More Browsers
 -------------

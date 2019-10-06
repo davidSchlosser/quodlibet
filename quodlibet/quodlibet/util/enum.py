@@ -1,12 +1,10 @@
-# -*- coding: utf-8 -*-
 # Copyright 2014 Christoph Reiter
 #           2016 Nick Boultbee
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License version 2 as
-# published by the Free Software Foundation
-
-from quodlibet.compat import iteritems
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
 
 
 def enum(cls):
@@ -28,7 +26,7 @@ def enum(cls):
     new_type.__module__ = cls.__module__
 
     map_ = {}
-    for key, value in iteritems(d):
+    for key, value in d.items():
         if key.upper() == key:
             value_instance = new_type(value)
             setattr(new_type, key, value_instance)

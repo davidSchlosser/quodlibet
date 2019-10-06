@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 # Copyright 2015 Christoph Reiter
 #
@@ -18,6 +18,7 @@ from xml.dom import minidom
 
 
 def main(argv):
+    assert sys.version_info[0] == 3
     assert len(argv) == 3
 
     jhbuild = os.path.join(argv[1], "_jhbuild")
@@ -50,7 +51,7 @@ def main(argv):
     for key in os.listdir(manifests):
         path = os.path.join(manifests, key)
 
-        with open(path, "rb") as h:
+        with open(path, "r", encoding="utf-8") as h:
             for file_ in h.read().splitlines():
                 entries[key].files.add(norm_py(file_))
 
@@ -63,15 +64,15 @@ def main(argv):
     for entry in sorted(entries.values(), key=lambda e: e.package):
         here = set([p for p in entry.files if p in found])
         if here:
-            print entry.package, entry.version
+            print(entry.package, entry.version)
         found -= here
         for p in sorted(here):
-            print "  ", p
+            print("  ", p)
 
     if found:
-        print "__UNKNOWN_SOURCE__"
+        print("__UNKNOWN_SOURCE__")
         for p in sorted(found):
-            print "  ", p
+            print("  ", p)
 
 
 if __name__ == '__main__':

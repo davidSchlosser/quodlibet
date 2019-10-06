@@ -1,9 +1,9 @@
-# -*- coding: utf-8 -*-
 # Copyright 2017 Didier Villevalois
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License version 2 as
-# published by the Free Software Foundation
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
 
 from gi.repository import Gtk
 
@@ -15,6 +15,7 @@ from quodlibet.qltk import Icons
 from quodlibet.qltk.entry import UndoEntry
 from quodlibet.qltk.notif import Task
 from quodlibet.qltk.window import Dialog
+from quodlibet.qltk.msg import ErrorMessage
 from quodlibet.util import copool
 from quodlibet.util.dprint import print_d
 
@@ -100,7 +101,7 @@ class ExportToFolder(PlaylistPlugin):
     PLUGIN_ICON = Icons.FOLDER
     REQUIRES_ACTION = True
 
-    def __copy_songs(self, task, songs, directory, pattern):
+    def __copy_songs(self, task, songs, directory, pattern, parent=None):
         """Generator for copool to copy songs to the folder"""
         self.__cancel = False
         total = len(songs)
@@ -112,7 +113,15 @@ class ExportToFolder(PlaylistPlugin):
                 self.__cancel = False
                 break
             # Actually do the copy
-            self._copy_file(song, directory, i + 1, pattern)
+            try:
+                self._copy_file(song, directory, i + 1, pattern)
+            except OSError as e:
+                print_d("Unable to copy file: {}".format(e))
+                ErrorMessage(parent,
+                        _("Unable to export playlist"),
+                        _("Ensure you have write access to the destination.")
+                    ).run()
+                break
             task.update(float(i) / total)
             yield True
         print_d("Finished export to directory.")
@@ -138,7 +147,7 @@ class ExportToFolder(PlaylistPlugin):
             task = Task("Export", _("Export Playlist to Folder"),
                         stop=self.__cancel_copy)
             copool.add(self.__copy_songs, task,
-                       playlist.songs, directory, pattern,
+                       playlist.songs, directory, pattern, self.plugin_window,
                        funcid="export-playlist-folder")
 
         dialog.destroy()

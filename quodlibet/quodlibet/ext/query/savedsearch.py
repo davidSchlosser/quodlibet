@@ -1,9 +1,9 @@
-# -*- coding: utf-8 -*-
 # Copyright 2016 Ryan Dellenbaugh
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License version 2 as
-# published by the Free Software Foundation
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
 
 import os.path
 
@@ -34,7 +34,7 @@ class IncludeSavedSearchQuery(QueryPlugin):
         else:
             query_path = os.path.join(get_user_dir(), 'lists', 'queries.saved')
         try:
-            with open(query_path, 'rU') as query_file:
+            with open(query_path, 'r', encoding="utf-8") as query_file:
                 for query_string in query_file:
                     name = next(query_file).strip().lower()
                     if name == body:

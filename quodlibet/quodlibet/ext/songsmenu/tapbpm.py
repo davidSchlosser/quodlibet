@@ -1,10 +1,10 @@
-# -*- coding: utf-8 -*-
 # Copyright 2017 Didier Villevalois,
 #           2010 Christoph Reiter
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License version 2 as
-# published by the Free Software Foundation
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
 
 from gi.repository import Gdk, Gtk
 
@@ -20,7 +20,7 @@ class TapBpmPanel(Gtk.VBox):
 
         self.dialog = parent
         self.song = song
-        self.original_bpm = float(song["bpm"]) if "bpm" in song else 0.0
+        self.original_bpm = song["bpm"] if "bpm" in song else _("n/a")
 
         self.set_margin_bottom(6)
         self.set_spacing(6)
@@ -50,15 +50,17 @@ class TapBpmPanel(Gtk.VBox):
         self.show_all()
 
     def update(self):
-        has_new_bpm = self.floating_bpm != self.original_bpm
+        has_new_bpm = self.clicks > 1
 
         self.dialog.set_response_sensitive(Gtk.ResponseType.OK, has_new_bpm)
         self.reset_btn.set_sensitive(has_new_bpm)
 
-        if self.floating_bpm != 0.0:
+        if self.clicks > 1:
             self.bpm_label.set_text("%.1f" % self.floating_bpm)
-        else:
+        elif self.clicks == 1:
             self.bpm_label.set_text(_("n/a"))
+        else:
+            self.bpm_label.set_text(str(self.original_bpm))
 
         # Give focus back to the tap button even if reset was pressed
         self.tap_btn.grab_focus()
@@ -97,7 +99,10 @@ class TapBpmPanel(Gtk.VBox):
         self.average_count = 0
         self.min = 0
         self.max = 0
-        self.floating_bpm = self.original_bpm
+        try:
+            self.floating_bpm = float(self.original_bpm)
+        except ValueError:
+            self.floating_bpm = 0.0
         self.floating_square = 0.0
         self.keep = 100
 
@@ -184,7 +189,7 @@ class TapBpm(SongsMenuPlugin):
 
         window.set_default_size(300, 100)
         window.set_border_width(6)
-        window.connect('response', self.response)
+        self.__resp_sig = window.connect('response', self.response)
 
         self._panel = TapBpmPanel(window, song)
         window.vbox.pack_start(self._panel, False, True, 0)
@@ -197,7 +202,6 @@ class TapBpm(SongsMenuPlugin):
             # Save metadata
             self._panel.save()
 
-        self._window.hide()
-        self._window.destroy()
-        del self._window
-        del self._panel
+        win.hide()
+        win.disconnect(self.__resp_sig)
+        win.destroy()

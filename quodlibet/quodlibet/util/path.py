@@ -1,26 +1,26 @@
-# -*- coding: utf-8 -*-
 # Copyright 2004-2009 Joe Wreschnig, Michael Urman, Steven Robertson
 #           2011-2013 Nick Boultbee
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License version 2 as
-# published by the Free Software Foundation
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
 
 import os
+import io
 import re
 import sys
 import errno
-import tempfile
 import codecs
 import shlex
+from urllib.parse import urlparse, quote, unquote
 
 from senf import fsnative, bytes2fsn, fsn2bytes, expanduser, sep, expandvars, \
-    fsn2text
+    fsn2text, path2fsn
 
-from quodlibet.compat import PY2, urlparse, text_type, quote, unquote, PY3
 from . import windows
 from .environment import is_windows
-from .misc import environ
+from .misc import environ, NamedTemporaryFile
 
 if sys.platform == "darwin":
     from Foundation import NSString
@@ -41,19 +41,13 @@ def mkdir(dir_, *args):
 def glib2fsn(path):
     """Takes a glib filename and returns a fsnative path"""
 
-    if PY2:
-        return bytes2fsn(path, "utf-8")
-    else:
-        return path
+    return path
 
 
 def fsn2glib(path):
     """Takes a fsnative path and returns a glib filename"""
 
-    if PY2:
-        return fsn2bytes(path, "utf-8")
-    else:
-        return path
+    return path
 
 
 def iscommand(s):
@@ -114,14 +108,14 @@ def escape_filename(s):
     """Escape a string in a manner suitable for a filename.
 
     Args:
-        s (text_type)
+        s (str)
     Returns:
         fsnative
     """
 
-    s = text_type(s)
+    s = str(s)
     s = quote(s.encode("utf-8"), safe=b"")
-    if isinstance(s, text_type):
+    if isinstance(s, str):
         s = s.encode("ascii")
     return bytes2fsn(s, "utf-8")
 
@@ -132,7 +126,7 @@ def unescape_filename(s):
     Args:
         filename (fsnative)
     Returns:
-        text_type
+        str
     """
 
     assert isinstance(s, fsnative)
@@ -141,11 +135,16 @@ def unescape_filename(s):
 
 
 def unexpand(filename):
-    """Replace the user's home directory with ~/, if it appears at the
-    start of the path name.
+    """Replace the user's home directory with ~ or %USERPROFILE%, if it
+    appears at the start of the path name.
+
+    Args:
+        filename (fsnative): The file path
+    Returns:
+        fsnative: The path with the home directory replaced
     """
 
-    sub = (os.name == "nt" and "%USERPROFILE%") or "~"
+    sub = (os.name == "nt" and fsnative(u"%USERPROFILE%")) or fsnative(u"~")
     home = expanduser("~")
     if filename == home:
         return sub
@@ -154,7 +153,7 @@ def unexpand(filename):
     return filename
 
 
-if PY3 and is_windows():
+if is_windows():
     def ismount(path):
         # this can raise on py3+win, but we don't care
         try:
@@ -272,7 +271,7 @@ def get_temp_cover_file(data):
 
     try:
         # pass fsnative so that mkstemp() uses unicode on Windows
-        fn = tempfile.NamedTemporaryFile(prefix=fsnative(u"tmp"))
+        fn = NamedTemporaryFile(prefix=fsnative(u"tmp"))
         fn.write(data)
         fn.flush()
         fn.seek(0, 0)
@@ -282,7 +281,7 @@ def get_temp_cover_file(data):
         return fn
 
 
-def _strip_win32_incompat(string, BAD='\:*?;"<>|'):
+def _strip_win32_incompat(string, BAD=r'\:*?;"<>|'):
     """Strip Win32-incompatible characters from a Windows or Unix path."""
 
     if os.name == "nt":
@@ -310,14 +309,18 @@ def strip_win32_incompat_from_path(string):
 
 def _normalize_darwin_path(filename, canonicalise=False):
 
+    filename = path2fsn(filename)
+
     if canonicalise:
         filename = os.path.realpath(filename)
     filename = os.path.normpath(filename)
 
-    decoded = filename.decode("utf-8", "quodlibet-osx-path-decode")
+    data = fsn2bytes(filename, "utf-8")
+    decoded = data.decode("utf-8", "quodlibet-osx-path-decode")
 
     try:
-        return NSString.fileSystemRepresentation(decoded)
+        return bytes2fsn(
+            NSString.fileSystemRepresentation(decoded), "utf-8")
     except ValueError:
         return filename
 
@@ -327,6 +330,7 @@ def _normalize_path(filename, canonicalise=False):
     If `canonicalise` is True, dereference symlinks etc
     by calling `os.path.realpath`
     """
+    filename = path2fsn(filename)
     if canonicalise:
         filename = os.path.realpath(filename)
     filename = os.path.normpath(filename)
@@ -412,12 +416,19 @@ def ishidden(path):
 def uri_is_valid(uri):
     """Returns True if the passed in text is a valid URI (file, http, etc.)
 
+    Args:
+        uri(text or bytes)
     Returns:
         bool
     """
 
-    if not isinstance(uri, bytes):
-        uri = uri.encode("ascii")
+    try:
+        if isinstance(uri, bytes):
+            uri.decode("ascii")
+        elif not isinstance(uri, bytes):
+            uri = uri.encode("ascii")
+    except ValueError:
+        return False
 
     parsed = urlparse(uri)
     if not parsed.scheme or not len(parsed.scheme) > 1:
@@ -426,3 +437,53 @@ def uri_is_valid(uri):
         return False
     else:
         return True
+
+
+class RootPathFile:
+    """Simple container used for discerning a pathfile's 'root' directory
+    and 'end' part. The variable depth of a pathfile's 'end' part renders
+    os.path built-ins (basename etc.) useless for this purpose"""
+
+    _root = ''  # 'root' of full file path
+    _pathfile = ''  # full file path
+
+    def __init__(self, root, pathfile):
+        self._root = root
+        self._pathfile = pathfile
+
+    @property
+    def root(self):
+        return self._root
+
+    @property
+    def end(self):
+        return self._pathfile[len(self._root) + len(os.sep):]
+
+    @property
+    def pathfile(self):
+        return self._pathfile
+
+    @property
+    def end_escaped(self):
+        escaped = [escape_filename(part)
+                    for part in self.end.split(os.path.sep)]
+        return os.path.sep.join(escaped)
+
+    @property
+    def pathfile_escaped(self):
+        return os.path.sep.join([self.root, self.end_escaped])
+
+    @property
+    def valid(self):
+        valid = True
+        if os.path.exists(self.pathfile):
+            return valid
+        else:
+            try:
+                with io.open(self.pathfile, "w", encoding='utf-8') as f:
+                    f.close()  # do nothing
+            except OSError:
+                valid = False
+            if os.path.exists(self.pathfile):
+                os.remove(self.pathfile)
+            return valid

@@ -1,15 +1,14 @@
-# -*- coding: utf-8 -*-
 # Copyright 2011,2013 Christoph Reiter
 #                2016 Nick Boultbee
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License version 2 as
-# published by the Free Software Foundation
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
 
 from gi.repository import Gtk, Pango, GLib
 
 from quodlibet import _
-from quodlibet.compat import listfilter
 from quodlibet.qltk import Button, Window
 from quodlibet.util import connect_obj, print_w
 
@@ -39,7 +38,7 @@ class FingerprintDialog(Window):
         super(FingerprintDialog, self).__init__()
         self.set_border_width(12)
         self.set_title(_("Submit Acoustic Fingerprints"))
-        self.set_default_size(300, 0)
+        self.set_default_size(450, 0)
 
         outer_box = Gtk.VBox(spacing=12)
 
@@ -60,7 +59,10 @@ class FingerprintDialog(Window):
 
         self.__stats = stats = Gtk.Label()
         stats.set_alignment(0, 0.5)
+        stats.set_line_wrap(True)
+        stats.set_size_request(426, -1)
         expand = Gtk.Expander.new_with_mnemonic(_("_Details"))
+        expand.set_resize_toplevel(True)
         expand.add(stats)
 
         def expand_cb(expand, *args):
@@ -87,8 +89,8 @@ class FingerprintDialog(Window):
         submit.connect('clicked', self.__submit_cb)
         cancel = Button(_("_Cancel"))
         connect_obj(cancel, 'clicked', self.__cancel_cb, pool)
-        bbox.pack_start(submit, True, True, 0)
         bbox.pack_start(cancel, True, True, 0)
+        bbox.pack_start(submit, True, True, 0)
 
         outer_box.pack_start(box, True, True, 0)
         outer_box.pack_start(bbox, False, True, 0)
@@ -108,7 +110,7 @@ class FingerprintDialog(Window):
     def __update_stats(self):
         all_ = len(self.__songs)
         results = self.__fp_results.values()
-        to_send = len(listfilter(can_submit, results))
+        to_send = len(list(filter(can_submit, results)))
         valid_fp = len(results)
         got_mbid, got_meta = get_stats(results)
 

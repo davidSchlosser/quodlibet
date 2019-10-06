@@ -1,10 +1,10 @@
-# -*- coding: utf-8 -*-
 # Copyright 2013 Christoph Reiter
 #           2015 Anton Shestakov
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License version 2 as
-# published by the Free Software Foundation
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
 
 import os
 import contextlib
@@ -12,13 +12,15 @@ import sys
 import shutil
 import locale
 import errno
+from io import StringIO
 
 from gi.repository import Gtk, Gdk
+
+from quodlibet.util.i18n import GlibTranslations
 from senf import fsnative, environ
 
 from quodlibet.qltk import find_widgets, get_primary_accel_mod
 from quodlibet.util.path import normalize_path
-from quodlibet.compat import StringIO
 
 
 def dummy_path(path):
@@ -318,3 +320,9 @@ class ListWithUnused(object):
         if self.unused:
             from quodlibet import print_w
             print_w('ListWithUnused has unused items: %s' % self.unused)
+
+
+def __(message):
+    """See `quodlibet._`. Avoids triggering PO scanners"""
+    t = GlibTranslations()
+    return t.wrap_text(t.ugettext(message))

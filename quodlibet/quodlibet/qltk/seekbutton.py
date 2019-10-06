@@ -1,10 +1,10 @@
-# -*- coding: utf-8 -*-
 # Copyright 2005 Joe Wreschnig, Michael Urman
 #           2013 Christoph Reiter
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License version 2 as
-# published by the Free Software Foundation
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
 
 from gi.repository import Gtk, Gdk, GLib
 
@@ -21,7 +21,7 @@ from quodlibet.qltk.ccb import ConfigCheckMenuItem
 from quodlibet.qltk.util import window_grab_and_map, window_ungrab_and_unmap, \
     position_window_beside_widget
 from quodlibet.qltk.x import SeparatorMenuItem
-from quodlibet.util import connect_obj, connect_destroy, gdecode
+from quodlibet.util import connect_obj, connect_destroy
 
 
 class TimeLabel(Gtk.Label):
@@ -44,7 +44,7 @@ class TimeLabel(Gtk.Label):
 
         # If for same number of characters, the needed width was larger,
         # use that instead of the current one
-        num_chars = len(gdecode(self.get_text()))
+        num_chars = len(self.get_text())
         max_widths = self.__widths.get(num_chars, widths)
         widths = max(widths[0], max_widths[0]), max(widths[1], max_widths[1])
         self.__widths[num_chars] = widths
@@ -185,9 +185,9 @@ class HSlider(Gtk.Button):
         v = hscale.get_value()
         direction = event.direction
         if direction in [Gdk.ScrollDirection.DOWN, Gdk.ScrollDirection.RIGHT]:
-            v += adj.props.step_increment
-        elif direction in [Gdk.ScrollDirection.UP, Gdk.ScrollDirection.LEFT]:
             v -= adj.props.step_increment
+        elif direction in [Gdk.ScrollDirection.UP, Gdk.ScrollDirection.LEFT]:
+            v += adj.props.step_increment
         else:
             # newer Gdk.ScrollDirection.SMOOTH
             return
@@ -302,9 +302,7 @@ class SeekButton(HSlider):
         return True
 
     def __seeked(self, player, song, ms):
-        # If it's not paused, we'll grab it in our next update.
-        if player.paused:
-            self.scale.set_value(ms // 1000)
+        self.scale.set_value(ms / 1000.)
 
     def __scroll(self, widget, event, player):
         self.__lock = True
@@ -330,7 +328,7 @@ class SeekButton(HSlider):
         # When the song is paused GStreamer returns < 1 for position
         # queries, so if it's paused just ignore it.
         if not (player.paused or self.__lock):
-            position = player.get_position() // 1000
+            position = player.get_position() / 1000.
             if (not self.__seekable and
                 position > self.scale.get_adjustment().get_upper()):
                 self.scale.set_range(0, position)

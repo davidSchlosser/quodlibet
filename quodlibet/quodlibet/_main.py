@@ -1,9 +1,9 @@
-# -*- coding: utf-8 -*-
 # Copyright 2012 Christoph Reiter
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License version 2 as
-# published by the Free Software Foundation
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
 
 import os
 import sys
@@ -13,9 +13,9 @@ from senf import environ, path2fsn
 from quodlibet import util
 from quodlibet import const
 from quodlibet import build
-from quodlibet.util import cached_func, windows, set_process_title
+from quodlibet.util import cached_func, windows, set_process_title, is_osx
 from quodlibet.util.dprint import print_d
-from quodlibet.util.path import mkdir
+from quodlibet.util.path import mkdir, xdg_get_config_home, xdg_get_cache_home
 
 
 PLUGIN_DIRS = ["editing", "events", "playorder", "songsmenu", "playlist",
@@ -47,8 +47,17 @@ class Application(object):
     name = None
     """The application name e.g. 'Quod Libet'"""
 
+    description = None
+    """A short description of the application"""
+
     id = None
-    """The application ID e.g. 'quodlibet'"""
+    """The application ID e.g. 'io.github.quodlibet.QuodLibet'"""
+
+    process_name = None
+    """e.g. quodlibet"""
+
+    is_quitting = False
+    """True after quit() is called at least once"""
 
     @property
     def icon_name(self):
@@ -68,6 +77,8 @@ class Application(object):
 
     def quit(self):
         from gi.repository import GLib
+
+        self.is_quitting = True
 
         def idle_quit():
             if self.window:
@@ -112,13 +123,34 @@ def get_image_dir():
 
 
 @cached_func
+def get_cache_dir():
+    """The directory to store things into which can be deleted at any time"""
+
+    if os.name == "nt" and build.BUILD_TYPE == u"windows-portable":
+        # avoid writing things to the host system for the portable build
+        path = os.path.join(get_user_dir(), "cache")
+    else:
+        path = os.path.join(xdg_get_cache_home(), "quodlibet")
+
+    mkdir(path, 0o700)
+    return path
+
+
+@cached_func
 def get_user_dir():
     """Place where QL saves its state, database, config etc."""
 
     if os.name == "nt":
-        USERDIR = os.path.join(windows.get_appdate_dir(), "Quod Libet")
-    else:
+        USERDIR = os.path.join(windows.get_appdata_dir(), "Quod Libet")
+    elif is_osx():
         USERDIR = os.path.join(os.path.expanduser("~"), ".quodlibet")
+    else:
+        USERDIR = os.path.join(xdg_get_config_home(), "quodlibet")
+
+        if not os.path.exists(USERDIR):
+            tmp = os.path.join(os.path.expanduser("~"), ".quodlibet")
+            if os.path.exists(tmp):
+                USERDIR = tmp
 
     if 'QUODLIBET_USERDIR' in environ:
         USERDIR = environ['QUODLIBET_USERDIR']
@@ -146,7 +178,7 @@ def get_build_version():
     """Returns a build version tuple"""
 
     version = list(const.VERSION_TUPLE)
-    if version[-1] != -1 and build.BUILD_VERSION > 0:
+    if is_release() and build.BUILD_VERSION > 0:
         version.append(build.BUILD_VERSION)
 
     return tuple(version)
@@ -160,12 +192,12 @@ def get_build_description():
 
     version = list(get_build_version())
     notes = []
-    if version[-1] == -1:
+    if not is_release():
         version = version[:-1]
         notes.append(u"development")
 
-    if build.BUILD_INFO:
-        notes.append(build.BUILD_INFO)
+        if build.BUILD_INFO:
+            notes.append(build.BUILD_INFO)
 
     version_string = u".".join(map(str, version))
     note = u" (%s)" % u", ".join(notes) if notes else u""
@@ -194,7 +226,7 @@ def init_plugins(no_plugins=False):
     return pm
 
 
-def set_application_info(icon_name, process_title, app_name):
+def set_application_info(app):
     """Call after init() and before creating any windows to apply default
     values for names and icons.
     """
@@ -205,16 +237,21 @@ def set_application_info(icon_name, process_title, app_name):
 
     from gi.repository import Gtk, GLib
 
-    set_process_title(process_title)
+    assert app.process_name
+    set_process_title(app.process_name)
     # Issue 736 - set after main loop has started (gtk seems to reset it)
-    GLib.idle_add(set_process_title, process_title)
+    GLib.idle_add(set_process_title, app.process_name)
 
-    GLib.set_prgname(process_title)
-    GLib.set_application_name(app_name)
+    assert app.id
+    # https://honk.sigxcpu.org/con/GTK__and_the_application_id.html
+    GLib.set_prgname(app.id)
+    assert app.name
+    GLib.set_application_name(app.name)
 
+    assert app.icon_name
     theme = Gtk.IconTheme.get_default()
-    assert theme.has_icon(icon_name)
-    Gtk.Window.set_default_icon_name(icon_name)
+    assert theme.has_icon(app.icon_name)
+    Gtk.Window.set_default_icon_name(app.icon_name)
 
 
 def _main_setup_osx(window):
@@ -240,7 +277,7 @@ def _main_setup_osx(window):
     # applicationShouldHandleReopen_hasVisibleWindows_ and show everything.
     class Delegate(NSObject):
 
-        @objc.signature('B@:#B')
+        @objc.signature(b'B@:#B')
         def applicationShouldHandleReopen_hasVisibleWindows_(
                 self, ns_app, flag):
             print_d("osx: handle reopen")
@@ -321,12 +358,14 @@ def run(window, before_quit=None):
 
     from quodlibet.errorreport import faulthandling
 
-    try:
-        faulthandling.enable(os.path.join(get_user_dir(), "faultdump"))
-    except IOError:
-        util.print_exc()
-    else:
-        GLib.idle_add(faulthandling.raise_and_clear_error)
+    # gtk+ on osx is just too crashy
+    if not is_osx():
+        try:
+            faulthandling.enable(os.path.join(get_user_dir(), "faultdump"))
+        except IOError:
+            util.print_exc()
+        else:
+            GLib.idle_add(faulthandling.raise_and_clear_error)
 
     # set QUODLIBET_START_PERF to measure startup time until the
     # windows is first shown.

@@ -1,10 +1,10 @@
-# -*- coding: utf-8 -*-
 # Copyright 2011-2013 Christoph Reiter
 #                2016 Nick Boultbee
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License version 2 as
-# published by the Free Software Foundation
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
 
 import re
 
@@ -34,7 +34,7 @@ class RadioAdMute(EventPlugin):
             "www.di.fm/jobs",
             ]
 
-    RE_SPAM = ["Sponsored Message\s+\([0-9]+\)",
+    RE_SPAM = [r"Sponsored Message\s+\([0-9]+\)",
             ]
 
     SPAM = list(map(re_escape, SPAM)) + RE_SPAM

@@ -1,9 +1,10 @@
-# -*- coding: utf-8 -*-
 # Copyright 2014 Christoph Reiter
+#           2018 Ludovic Druette
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License version 2 as
-# published by the Free Software Foundation
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
 
 from quodlibet import config
 from quodlibet.util import print_d
@@ -63,6 +64,7 @@ class MMKeysHandler(object):
         self._backend = None
         self._window = app.window
         self._player = app.player
+        self._player_options = app.player_options
         self._app_name = app.name
 
     def start(self):
@@ -89,24 +91,36 @@ class MMKeysHandler(object):
     def _callback(self, action):
         print_d("Event %r from %r" % (action, type(self._backend).__name__))
 
+        def seek_relative(seconds):
+            current = player.get_position()
+            current += seconds * 1000
+            current = min(player.song("~#length") * 1000 - 1, current)
+            current = max(0, current)
+            player.seek(current)
+
         player = self._player
+        player_options = self._player_options
         if action == MMKeysAction.PREV:
-            player.previous()
+            player.previous(force=True)
         elif action == MMKeysAction.NEXT:
             player.next()
         elif action == MMKeysAction.STOP:
             player.stop()
         elif action == MMKeysAction.PLAY:
-            if player.song is None:
-                player.reset()
-            else:
-                player.paused = False
+            player.play()
         elif action == MMKeysAction.PLAYPAUSE:
-            if player.song is None:
-                player.reset()
-            else:
-                player.paused ^= True
+            player.playpause()
         elif action == MMKeysAction.PAUSE:
             player.paused = True
+        elif action == MMKeysAction.FORWARD:
+            if player.song:
+                seek_relative(10)
+        elif action == MMKeysAction.REWIND:
+            if player.song:
+                seek_relative(-10)
+        elif action == MMKeysAction.REPEAT:
+            player_options.repeat = not player_options.repeat
+        elif action == MMKeysAction.SHUFFLE:
+            player_options.shuffle = not player_options.shuffle
         else:
             assert 0, "unhandled event"

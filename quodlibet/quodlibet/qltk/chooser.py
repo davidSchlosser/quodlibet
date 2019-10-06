@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Copyright 2017 Christoph Reiter
 #
 # This program is free software; you can redistribute it and/or modify
@@ -14,15 +13,16 @@ from senf import fsnative, path2fsn, fsn2bytes, bytes2fsn
 
 from quodlibet import _
 from quodlibet import config
-from quodlibet.qltk import get_top_parent
+from quodlibet.qltk import get_top_parent, gtk_version
 from quodlibet.util.path import fsn2glib, glib2fsn, get_home_dir
+from quodlibet.util import is_windows
 
 
 def _get_chooser(accept_label, cancel_label):
     """
     Args:
-        accept_label (text_type)
-        cancel_label (text_type)
+        accept_label (str)
+        cancel_label (str)
     Returns:
         Gtk.FileChooser
     """
@@ -30,6 +30,10 @@ def _get_chooser(accept_label, cancel_label):
     if hasattr(Gtk, "FileChooserNative"):
         FileChooser = Gtk.FileChooserNative
     else:
+        FileChooser = Gtk.FileChooserDialog
+
+    # https://github.com/quodlibet/quodlibet/issues/2406
+    if is_windows() and gtk_version < (3, 22, 16):
         FileChooser = Gtk.FileChooserDialog
 
     chooser = FileChooser()
@@ -156,7 +160,7 @@ def create_chooser_filter(name, patterns):
     """Create a Gtk.FileFilter that also works on Windows
 
     Args:
-        name (text_type): The name of the filter
+        name (str): The name of the filter
         patterns (List[pathlike]): A list of glob patterns
     Returns:
         Gtk.FileFilter
@@ -175,8 +179,8 @@ def choose_folders(parent, title, action_title):
 
     Args:
         parent (Gtk.Widget)
-        title (text_type): The window title
-        action_title (text_type): The button title
+        title (str): The window title
+        action_title (str): The button title
     Returns:
         List[fsnative]
     """
@@ -195,8 +199,8 @@ def choose_files(parent, title, action_title, filter_=None):
 
     Args:
         parent (Gtk.Widget)
-        title (text_type): The window title
-        action_title (text_type): The button title
+        title (str): The window title
+        action_title (str): The button title
         filter_ (Gtk.FileFilter or None)
     Returns:
         List[fsnative]
@@ -219,9 +223,9 @@ def choose_target_file(parent, title, action_title, name_suggestion=None):
 
     Args:
         parent (Gtk.Widget)
-        title (text_type): The window title
-        action_title (text_type): The button title
-        name_suggestion (text_type): The suggested file name (not fsnative)
+        title (str): The window title
+        action_title (str): The button title
+        name_suggestion (str): The suggested file name (not fsnative)
     Returns:
         fsnative or None
     """
@@ -243,9 +247,9 @@ def choose_target_folder(parent, title, action_title, name_suggestion=None):
 
     Args:
         parent (Gtk.Widget)
-        title (text_type): The window title
-        action_title (text_type): The button title
-        name_suggestion (text_type): The suggested folder name (not fsnative)
+        title (str): The window title
+        action_title (str): The button title
+        name_suggestion (str): The suggested folder name (not fsnative)
     Returns:
         fsnative or None
     """

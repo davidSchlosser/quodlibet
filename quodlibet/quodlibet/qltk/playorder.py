@@ -1,10 +1,10 @@
-# -*- coding: utf-8 -*-
 # Copyright 2006 Joe Wreschnig
 #           2016 Nick Boultbee
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License version 2 as
-# published by the Free Software Foundation
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
 
 from gi.repository import Gtk, GObject
 
@@ -17,7 +17,7 @@ from quodlibet.order.repeat import RepeatListForever, RepeatSongForever, \
     Repeat, OneSong
 from quodlibet.qltk import Icons
 from quodlibet.qltk.x import SymbolicIconImage, RadioMenuItem, \
-    SeparatorMenuItem
+    SeparatorMenuItem, HighlightToggleButton
 from quodlibet.plugins import PluginManager
 from quodlibet.util.dprint import print_w, print_d
 
@@ -122,8 +122,9 @@ class ToggledPlayOrderMenu(Gtk.Box):
         context = self.get_style_context()
         context.add_class(Gtk.STYLE_CLASS_LINKED)
 
-        self._toggle_button = toggle = Gtk.ToggleButton(
+        self._toggle_button = toggle = HighlightToggleButton(
             image=SymbolicIconImage(icon_name, Gtk.IconSize.SMALL_TOOLBAR))
+
         if tooltip:
             toggle.set_tooltip_text(tooltip)
         toggle.set_active(enabled)
@@ -189,6 +190,7 @@ class ToggledPlayOrderMenu(Gtk.Box):
         self.__current = value
         if not self.__inhibit:
             self.emit('changed', self.__current)
+        self.__rebuild_menu()
 
     def set_active_by_name(self, name):
         for cls in self.__orders:

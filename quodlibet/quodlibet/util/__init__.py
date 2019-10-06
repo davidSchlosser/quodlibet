@@ -1,10 +1,10 @@
-# -*- coding: utf-8 -*-
 # Copyright 2004-2009 Joe Wreschnig, Michael Urman, Steven Robertson
-#           2011-2016 Nick Boultbee
+#           2011-2017 Nick Boultbee
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License version 2 as
-# published by the Free Software Foundation
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
 
 import os
 import random
@@ -14,8 +14,8 @@ import ctypes.util
 import sys
 import unicodedata
 import threading
-import subprocess
-import webbrowser
+import locale
+from functools import reduce
 
 # Windows doesn't have fcntl, just don't lock for now
 try:
@@ -24,41 +24,24 @@ try:
 except ImportError:
     fcntl = None
 
-from senf import fsnative, environ, argv
+from senf import fsnative, argv
 
-from quodlibet.compat import reraise as py_reraise, PY2, text_type, \
-    iteritems, reduce, number_types, long, cmp
-from quodlibet.util.path import iscommand
 from quodlibet.util.string.titlecase import title
 
 from quodlibet.const import SUPPORT_EMAIL, COPYRIGHT
 from quodlibet.util.dprint import print_d, print_, print_e, print_w, print_exc
-from .misc import cached_func, get_module_dir, get_ca_file, get_locale_encoding
+from .misc import cached_func, get_module_dir, get_ca_file, \
+    NamedTemporaryFile, cmp
 from .environment import is_plasma, is_unity, is_enlightenment, \
-    is_linux, is_windows, is_wine, is_osx, is_py2exe, is_py2exe_console, \
-    is_py2exe_window
+    is_linux, is_windows, is_wine, is_osx, is_flatpak, matches_flatpak_runtime
 from .enum import enum
-from .i18n import _, C_, locale_format
+from .i18n import _, C_
 
 
 # pyflakes
 cached_func, enum, print_w, print_exc, is_plasma, is_unity, is_enlightenment,
-is_linux, is_windows, is_wine, is_osx, is_py2exe, is_py2exe_console,
-is_py2exe_window, get_module_dir, get_ca_file, get_locale_encoding
-
-
-if PY2:
-    def gdecode(s):
-        """Returns unicode for the glib text type"""
-
-        assert isinstance(s, bytes)
-        return s.decode("utf-8")
-else:
-    def gdecode(s):
-        """Returns unicode for the glib text type"""
-
-        assert isinstance(s, text_type)
-        return s
+is_linux, is_windows, is_wine, is_osx, get_module_dir, get_ca_file,
+NamedTemporaryFile, is_flatpak, cmp, matches_flatpak_runtime
 
 
 class InstanceTracker(object):
@@ -93,7 +76,7 @@ class OptionParser(object):
             "help", shorts="h", help=_("Display brief usage information"))
         self.add(
             "version", shorts="v", help=_("Display version and copyright"))
-        self.add("debug", shorts="d")
+        self.add("debug", shorts="d", help=_("Print debugging information"))
 
     def add(self, canon, help=None, arg="", shorts="", longs=[]):
         self.__args[canon] = arg
@@ -337,14 +320,14 @@ def format_int_locale(value):
     """Turn an integer into a grouped, locale-dependent string
     e.g. 12345 -> "12,345" or "12.345" etc
     """
-    return locale_format("%d", value, grouping=True)
+    return locale.format_string("%d", value, grouping=True)
 
 
 def format_float_locale(value, format="%.2f"):
     """Turn a float into a grouped, locale-dependent string
     e.g. 12345.67 -> "12,345.67" or "12.345,67" etc
     """
-    return locale_format(format, value, grouping=True)
+    return locale.format_string(format, value, grouping=True)
 
 
 def format_rating(value, blank=True):
@@ -370,7 +353,7 @@ def format_size(size):
     Args:
         size (int): size in bytes
     Returns:
-        text_type
+        str
     """
     # TODO: Better i18n of this (eg use O/KO/MO/GO in French)
     if size >= 1024 ** 3:
@@ -497,7 +480,7 @@ def _split_numeric_sortkey(s, limit=10,
 def human_sort_key(s, normalize=unicodedata.normalize):
     if not s:
         return ()
-    if not isinstance(s, text_type):
+    if not isinstance(s, str):
         s = s.decode("utf-8")
     s = normalize("NFD", s.lower())
     return _split_numeric_sortkey(s)
@@ -506,44 +489,12 @@ def human_sort_key(s, normalize=unicodedata.normalize):
 def website(site):
     """Open the given URL in the user's default browser"""
 
-    if os.name == "nt" or sys.platform == "darwin":
-        return webbrowser.open(site)
+    from gi.repository import Gtk, Gdk, GLib
 
-    # all commands here return immediately
-    for prog in ["xdg-open", "gnome-open"]:
-        if not iscommand(prog):
-            continue
-
-        status = subprocess.check_call([prog, site])
-        if status == 0:
-            return True
-
-    # sensible-browser is a debian thing
-    blocking_progs = ["sensible-browser"]
-    blocking_progs.extend(environ.get("BROWSER", "").split(":"))
-
-    for prog in blocking_progs:
-        if not iscommand(prog):
-            continue
-
-        # replace %s with the url
-        args = prog.split()
-        for i, arg in enumerate(args):
-            if arg == "%s":
-                args[i] = site
-                break
-        else:
-            args.append(site)
-
-        # calling e.g. firefox blocks, so call async and hope for the best
-        try:
-            spawn(args)
-        except RuntimeError:
-            continue
-        else:
-            return True
-
-    return False
+    try:
+        Gtk.show_uri(None, site, Gdk.CURRENT_TIME)
+    except GLib.Error:
+        print_exc()
 
 
 def tag(name, cap=True):
@@ -606,7 +557,7 @@ def pattern(pat, cap=True, esc=False, markup=False):
 
         def __call__(self, tag, *args):
             if tag in FILESYSTEM_TAGS:
-                return fsnative(text_type(tag))
+                return fsnative(str(tag))
             return 0 if '~#' in tag[:2] else self.comma(tag)
 
     fakesong = Fakesong({'filename': tag('filename', cap)})
@@ -807,7 +758,7 @@ class cached_property(object):
         self.fget = fget
         self.__doc__ = doc or fget.__doc__
         self.__name__ = name = fget.__name__
-        # these get name mangled, so caching wont work unless
+        # these get name mangled, so caching won't work unless
         # we mangle too
         assert not (name.startswith("__") and not name.endswith("__")), \
             "can't cache a dunder method"
@@ -826,11 +777,11 @@ def sanitize_tags(tags, stream=False):
     """
 
     san = {}
-    for key, value in iteritems(tags):
+    for key, value in tags.items():
         key = key.lower()
         key = {"location": "website"}.get(key, key)
 
-        if isinstance(value, text_type):
+        if isinstance(value, str):
             lower = value.lower().strip()
 
             if key == "channel-mode":
@@ -851,7 +802,7 @@ def sanitize_tags(tags, stream=False):
 
         if key == "duration":
             try:
-                value = int(long(value) / 1000)
+                value = int(int(value) / 1000)
             except ValueError:
                 pass
             else:
@@ -884,7 +835,7 @@ def sanitize_tags(tags, stream=False):
         if not stream and key in ("title", "album", "artist", "date"):
             continue
 
-        if isinstance(value, number_types):
+        if isinstance(value, (int, float)):
             if not key.startswith("~#"):
                 key = "~#" + key
             san[key] = value
@@ -892,7 +843,7 @@ def sanitize_tags(tags, stream=False):
             if key.startswith("~#"):
                 key = key[2:]
 
-            if not isinstance(value, text_type):
+            if not isinstance(value, str):
                 continue
 
             value = value.strip()
@@ -941,15 +892,10 @@ def limit_songs(songs, max, weight_by_ratings=False):
         return songs
     else:
         if weight_by_ratings:
-            def choose(r1, r2):
-                if r1 or r2:
-                    return cmp(random.random(), r1 / (r1 + r2))
-                else:
-                    return random.randint(-1, 1)
-
-            def rating(song):
-                return song("~#rating")
-            songs.sort(cmp=choose, key=rating)
+            def rating_weighted_random(song):
+                # Apply even (random : higher rating) weighting
+                return (1 - song("~#rating")) * (1 + random.random())
+            songs.sort(key=rating_weighted_random)
         else:
             random.shuffle(songs)
         return songs[:max]
@@ -996,23 +942,15 @@ def load_library(names, shared=True):
     else:
         load_func = ctypes.cdll.LoadLibrary
 
-    if is_osx():
-        # make sure it's either empty or contains /usr/lib.
-        # (jhbuild sets it for example). Otherwise ctypes can't
-        # find libc (bug?)
-        if "DYLD_FALLBACK_LIBRARY_PATH" in environ:
-            paths = environ["DYLD_FALLBACK_LIBRARY_PATH"]
-            paths = paths.split(os.pathsep)
-            if "/usr/lib" not in paths:
-                paths.append("/usr/lib")
-                environ["DYLD_FALLBACK_LIBRARY_PATH"] = os.pathsep.join(paths)
-
     errors = []
     for name in names:
         dlopen_name = name
         if ".so" not in name and ".dll" not in name and \
                 ".dylib" not in name:
             dlopen_name = ctypes.util.find_library(name) or name
+
+        if is_osx() and not os.path.isabs(dlopen_name):
+            dlopen_name = os.path.join(sys.prefix, "lib", dlopen_name)
 
         try:
             return load_func(dlopen_name), name
@@ -1166,11 +1104,22 @@ def set_process_title(title):
 
     try:
         libc = load_library(["libc.so.6", "c"])[0]
-        # 15 = PR_SET_NAME, apparently
-        libc.prctl(15, title, 0, 0, 0)
+        prctl = libc.prctl
     except (OSError, AttributeError):
         print_d("Couldn't find module libc.so.6 (ctypes). "
                 "Not setting process title.")
+    else:
+        prctl.argtypes = [
+            ctypes.c_int, ctypes.c_ulong, ctypes.c_ulong,
+            ctypes.c_ulong, ctypes.c_ulong,
+        ]
+        prctl.restype = ctypes.c_int
+
+        PR_SET_NAME = 15
+        data = ctypes.create_string_buffer(title.encode("utf-8"))
+        res = prctl(PR_SET_NAME, ctypes.addressof(data), 0, 0, 0)
+        if res != 0:
+            print_w("Setting the process title failed")
 
 
 def list_unique(sequence):
@@ -1196,4 +1145,4 @@ def reraise(tp, value, tb=None):
 
     if tb is None:
         tb = sys.exc_info()[2]
-    py_reraise(tp, value, tb)
+    raise tp(value).with_traceback(tb)

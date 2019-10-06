@@ -1,9 +1,9 @@
-# -*- coding: utf-8 -*-
 # Copyright 2012 Christoph Reiter
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License version 2 as
-# published by the Free Software Foundation
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
 
 from tests import TestCase
 
@@ -16,7 +16,6 @@ from quodlibet.browsers.collection.prefs import save_headers, get_headers, \
     PatternEditor
 from quodlibet.formats import AudioFile
 from quodlibet.library import SongLibrary
-from quodlibet.compat import listvalues
 
 
 SONGS = [
@@ -87,7 +86,7 @@ class TCollectionAlbums(TestCase):
     def test_utils(self):
         model = CollectionTreeStore()
         model.set_albums([("~people", 0)], self.albums)
-        a = listvalues(self.albums)
+        a = list(self.albums.values())
         a.sort(key=lambda x: x.key)
 
         path = model.get_path_for_album(a[0])

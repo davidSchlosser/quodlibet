@@ -1,10 +1,10 @@
-# -*- coding: utf-8 -*-
 # Copyright 2014 Christoph Reiter
 #           2016 Nick Boultbee
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License version 2 as
-# published by the Free Software Foundation
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
 
 """A list of icon names.
 
@@ -25,7 +25,7 @@ class Icons(str):
     NONE = ""
 
     # these we have in our fallback icon theme
-    QUODLIBET = "quodlibet"
+    QUODLIBET = "io.github.quodlibet.QuodLibet"
     EXFALSO = "exfalso"
     QUODLIBET_MISSING_COVER = "quodlibet-missing-cover"
 
@@ -88,6 +88,7 @@ class Icons(str):
     MEDIA_PLAYBACK_STOP = "media-playback-stop"  # "_Stop"
     MEDIA_PLAYLIST_REPEAT = "media-playlist-repeat"
     MEDIA_PLAYLIST_SHUFFLE = "media-playlist-shuffle"
+    MEDIA_RECORD = "media-record"
     MEDIA_SKIP_BACKWARD = "media-skip-backward"  # "Pre_vious"
     MEDIA_SKIP_FORWARD = "media-skip-forward"  # "_Next"
     MULTIMEDIA_PLAYER = "multimedia-player"
@@ -98,6 +99,7 @@ class Icons(str):
     PREFERENCES_DESKTOP_SCREENSAVER = "preferences-desktop-screensaver"
     PREFERENCES_DESKTOP_THEME = "preferences-desktop-theme"
     PROCESS_STOP = "process-stop"  # "_Stop"
+    SYSTEM_LOCK_SCREEN = "system-lock-screen"
     SYSTEM_RUN = "system-run"  # "_Execute"
     SYSTEM_SEARCH = "system-search"
     TEXT_HTML = "text-html"

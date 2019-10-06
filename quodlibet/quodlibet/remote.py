@@ -1,9 +1,9 @@
-# -*- coding: utf-8 -*-
 # Copyright 2014 Christoph Reiter
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License version 2 as
-# published by the Free Software Foundation
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
 
 import os
 
@@ -31,7 +31,7 @@ class RemoteBase(object):
             cmd_registry (CommandRegistry)
         """
 
-        raise NotImplemented
+        raise NotImplementedError
 
     @classmethod
     def remote_exists(self):
@@ -41,7 +41,7 @@ class RemoteBase(object):
             bool
         """
 
-        raise NotImplemented
+        raise NotImplementedError
 
     @classmethod
     def send_message(cls, message):
@@ -57,7 +57,7 @@ class RemoteBase(object):
                 there was no response.
         """
 
-        raise NotImplemented
+        raise NotImplementedError
 
     def start(self):
         """Start the listener for other instances.
@@ -66,12 +66,12 @@ class RemoteBase(object):
             RemoteError: in case another instance is already listening.
         """
 
-        raise NotImplemented
+        raise NotImplementedError
 
     def stop(self):
         """Stop the listener for other instances"""
 
-        raise NotImplemented
+        raise NotImplementedError
 
 
 class QuodLibetWinRemote(RemoteBase):

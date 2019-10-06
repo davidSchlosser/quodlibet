@@ -1,10 +1,10 @@
-# -*- coding: utf-8 -*-
-# Copyright 2004-2013 Joe Wreschnig, Michael Urman, Iñigo Serna,
+# Copyright 2004-2017 Joe Wreschnig, Michael Urman, Iñigo Serna,
 #     Christoph Reiter, Nick Boultbee
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License version 2 as
-# published by the Free Software Foundation
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
 
 import re
 
@@ -36,10 +36,9 @@ def background_filter():
     bg = config.gettext("browsers", "background")
     if not bg:
         return
-    try:
-        return Query(bg, SongList.star).search
-    except Query.error:
-        pass
+    query = Query(bg, SongList.star)
+    if query.is_parsable:
+        return query.search
 
 
 def split_scan_dirs(joined_paths):
